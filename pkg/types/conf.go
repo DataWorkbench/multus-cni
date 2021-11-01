@@ -21,12 +21,12 @@ import (
 	"net"
 	"strings"
 
+	"github.com/DataWorkBench/multus-cni/pkg/logging"
 	"github.com/containernetworking/cni/libcni"
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/cni/pkg/version"
 	nadutils "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils"
-	"gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/logging"
 )
 
 const (

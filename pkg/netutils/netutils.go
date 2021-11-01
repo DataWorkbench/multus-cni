@@ -16,12 +16,12 @@
 package netutils
 
 import (
+	"github.com/DataWorkBench/multus-cni/pkg/logging"
 	"github.com/containernetworking/cni/pkg/skel"
 	cnitypes "github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
-	"gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/logging"
 	"net"
 	"strings"
 )

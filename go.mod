@@ -1,6 +1,6 @@
-module gopkg.in/k8snetworkplumbingwg/multus-cni.v3
+module github.com/DataWorkBench/multus-cni
 
-go 1.16
+go 1.15
 
 require (
 	github.com/containernetworking/cni v0.8.1
@@ -10,6 +10,7 @@ require (
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.3
 	github.com/pkg/errors v0.9.1
+	github.com/syndtr/goleveldb v1.0.0
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
 	golang.org/x/net v0.0.0-20210224082022-3d97a244fca7
 	google.golang.org/grpc v1.27.1
@@ -23,6 +24,7 @@ require (
 )
 
 replace (
+	github.com/DataWorkbench/multus-cni => ../multus-cni
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	k8s.io/api => k8s.io/api v0.20.10
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.10

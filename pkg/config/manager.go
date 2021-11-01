@@ -22,7 +22,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/logging"
+	"github.com/DataWorkBench/multus-cni/pkg/logging"
 )
 
 // MultusDefaultNetworkName holds the default name of the multus network
@@ -35,7 +35,7 @@ const (
 // Manager monitors the configuration of the primary CNI plugin, and
 // regenerates multus configuration whenever it gets updated.
 type Manager struct {
-	cniConfigData	     map[string]interface{}
+	cniConfigData        map[string]interface{}
 	configWatcher        *fsnotify.Watcher
 	multusConfig         *MultusConf
 	multusConfigDir      string

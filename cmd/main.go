@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/DataWorkBench/multus-cni/pkg/multus"
 	"github.com/containernetworking/cni/pkg/skel"
 	cniversion "github.com/containernetworking/cni/pkg/version"
-	"gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/multus"
 )
 
 func main() {
