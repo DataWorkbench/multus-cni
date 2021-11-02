@@ -116,7 +116,7 @@ func (q *qingcloudAPIWrapper) GetInstanceID() string {
 	return q.instanceID
 }
 
-func (q *qingcloudAPIWrapper) GetCreatedNics(num, offset int) ([]*rpc.HostNic, error) {
+func (q *qingcloudAPIWrapper) GetCreatedNics(num, offset int) ([]*rpc.NicInfo, error) {
 	input := &service.DescribeNicsInput{
 		Limit:   &num,
 		Offset:  &offset,
@@ -129,14 +129,14 @@ func (q *qingcloudAPIWrapper) GetCreatedNics(num, offset int) ([]*rpc.HostNic, e
 	}
 
 	var (
-		nics   []*rpc.HostNic
+		nics   []*rpc.NicInfo
 		netIDs []string
 	)
 	for _, nic := range output.NICSet {
 		if *nic.Role != 0 {
 			continue
 		}
-		nics = append(nics, constructHostnic(&rpc.VxNet{
+		nics = append(nics, constructHostnic(&rpc.VxNetInfo{
 			ID: *nic.VxNetID,
 		}, nic))
 		netIDs = append(netIDs, *nic.VxNetID)
@@ -157,7 +157,7 @@ func (q *qingcloudAPIWrapper) GetCreatedNics(num, offset int) ([]*rpc.HostNic, e
 	return nics, nil
 }
 
-func (q *qingcloudAPIWrapper) GetAttachedNics() ([]*rpc.HostNic, error) {
+func (q *qingcloudAPIWrapper) GetAttachedNics() ([]*rpc.NicInfo, error) {
 	input := &service.DescribeNicsInput{
 		Instances: []*string{&q.instanceID},
 		Status:    service.String("in-use"),
@@ -169,7 +169,7 @@ func (q *qingcloudAPIWrapper) GetAttachedNics() ([]*rpc.HostNic, error) {
 		return nil, logging.Errorf("failed to GetPrimaryNIC: %v", err)
 	}
 
-	var result []*rpc.HostNic
+	var result []*rpc.NicInfo
 	for _, nic := range output.NICSet {
 		result = append(result, constructHostnic(nil, nic))
 	}
@@ -192,14 +192,14 @@ func (q *qingcloudAPIWrapper) AttachNics(nicIDs []string) (string, error) {
 }
 
 // vxnet should not be nil
-func constructHostnic(vxnet *rpc.VxNet, nic *service.NIC) *rpc.HostNic {
+func constructHostnic(vxnet *rpc.VxNetInfo, nic *service.NIC) *rpc.NicInfo {
 	if vxnet == nil {
-		vxnet = &rpc.VxNet{
+		vxnet = &rpc.VxNetInfo{
 			ID: *nic.VxNetID,
 		}
 	}
 
-	hostnic := &rpc.HostNic{
+	hostnic := &rpc.NicInfo{
 		ID:             *nic.NICID,
 		VxNet:          vxnet,
 		HardwareAddr:   *nic.NICID,
@@ -217,7 +217,7 @@ func constructHostnic(vxnet *rpc.VxNet, nic *service.NIC) *rpc.HostNic {
 	return hostnic
 }
 
-func (q *qingcloudAPIWrapper) GetNics(nics []string) (map[string]*rpc.HostNic, error) {
+func (q *qingcloudAPIWrapper) GetNics(nics []string) (map[string]*rpc.NicInfo, error) {
 	input := &service.DescribeNicsInput{
 		Nics:  service.StringSlice(nics),
 		Limit: service.Int(constants.NicNumLimit),
@@ -228,7 +228,7 @@ func (q *qingcloudAPIWrapper) GetNics(nics []string) (map[string]*rpc.HostNic, e
 		return nil, logging.Errorf("failed to GetNics: %v", err)
 	}
 
-	result := make(map[string]*rpc.HostNic)
+	result := make(map[string]*rpc.NicInfo)
 	for _, nic := range output.NICSet {
 		result[*nic.NICID] = constructHostnic(nil, nic)
 	}
@@ -236,7 +236,7 @@ func (q *qingcloudAPIWrapper) GetNics(nics []string) (map[string]*rpc.HostNic, e
 	return result, nil
 }
 
-func (q *qingcloudAPIWrapper) CreateNicsAndAttach(vxnet *rpc.VxNet, num int, ips []string) ([]*rpc.HostNic, string, error) {
+func (q *qingcloudAPIWrapper) CreateNicsAndAttach(vxnet *rpc.VxNetInfo, num int, ips []string) ([]*rpc.NicInfo, string, error) {
 	nicName := constants.NicPrefix + q.instanceID
 	input := &service.CreateNicsInput{
 		Count:      service.Int(num),
@@ -254,11 +254,11 @@ func (q *qingcloudAPIWrapper) CreateNicsAndAttach(vxnet *rpc.VxNet, num int, ips
 	}
 
 	var (
-		result []*rpc.HostNic
+		result []*rpc.NicInfo
 		nics   []string
 	)
 	for _, nic := range output.Nics {
-		result = append(result, &rpc.HostNic{
+		result = append(result, &rpc.NicInfo{
 			ID:             *nic.NICID,
 			VxNet:          vxnet,
 			HardwareAddr:   *nic.NICID,
@@ -349,7 +349,7 @@ func (q *qingcloudAPIWrapper) DescribeNicJobs(ids []string) ([]string, map[strin
 	return left, working, nil
 }
 
-func (q *qingcloudAPIWrapper) getVxNets(ids []string, public bool) ([]*rpc.VxNet, error) {
+func (q *qingcloudAPIWrapper) getVxNets(ids []string, public bool) ([]*rpc.VxNetInfo, error) {
 	input := &service.DescribeVxNetsInput{
 		VxNets: service.StringSlice(ids),
 		Limit:  service.Int(constants.NicNumLimit),
@@ -362,9 +362,9 @@ func (q *qingcloudAPIWrapper) getVxNets(ids []string, public bool) ([]*rpc.VxNet
 		return nil, logging.Errorf("failed to GetVxNets, %v", err)
 	}
 
-	var vxNets []*rpc.VxNet
+	var vxNets []*rpc.VxNetInfo
 	for _, qcVxNet := range output.VxNetSet {
-		vxnetItem := &rpc.VxNet{
+		vxnetItem := &rpc.VxNetInfo{
 			ID: *qcVxNet.VxNetID,
 		}
 
@@ -381,7 +381,7 @@ func (q *qingcloudAPIWrapper) getVxNets(ids []string, public bool) ([]*rpc.VxNet
 	return vxNets, nil
 }
 
-func (q *qingcloudAPIWrapper) GetVxNets(ids []string) (map[string]*rpc.VxNet, error) {
+func (q *qingcloudAPIWrapper) GetVxNets(ids []string) (map[string]*rpc.VxNetInfo, error) {
 	if len(ids) <= 0 {
 		return nil, errors.WithStack(fmt.Errorf("GetVxNets should not have empty input"))
 	}
@@ -392,7 +392,7 @@ func (q *qingcloudAPIWrapper) GetVxNets(ids []string) (map[string]*rpc.VxNet, er
 	}
 
 	var left []string
-	result := make(map[string]*rpc.VxNet, 0)
+	result := make(map[string]*rpc.VxNetInfo, 0)
 	for _, vxNet := range vxnets {
 		result[vxNet.ID] = vxNet
 	}

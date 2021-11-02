@@ -449,13 +449,13 @@ var file_message_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_message_proto_goTypes = []interface{}{
 	(Status)(0),         // 0: rpc.Status
-	(*VxNetInfo)(nil),   // 1: rpc.VxNetInfo
+	(*VxNetInfo)(nil),   // 1: rpc.VxNetInfoInfo
 	(*NicInfo)(nil),     // 2: rpc.NicInfo
 	(*PodInfo)(nil),     // 3: rpc.PodInfo
 	(*NICMMessage)(nil), // 4: rpc.NICMMessage
 }
 var file_message_proto_depIdxs = []int32{
-	1, // 0: rpc.NicInfo.VxNet:type_name -> rpc.VxNetInfo
+	1, // 0: rpc.NicInfo.VxNet:type_name -> rpc.VxNetInfoInfo
 	0, // 1: rpc.NicInfo.Status:type_name -> rpc.Status
 	3, // 2: rpc.NICMMessage.Pod:type_name -> rpc.PodInfo
 	2, // 3: rpc.NICMMessage.Nic:type_name -> rpc.NicInfo

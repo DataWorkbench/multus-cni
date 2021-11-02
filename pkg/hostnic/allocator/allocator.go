@@ -17,7 +17,7 @@ import (
 )
 
 type nicStatus struct {
-	nic  *rpc.HostNic
+	nic  *rpc.NicInfo
 	info *rpc.PodInfo
 }
 
@@ -47,7 +47,7 @@ type Allocator struct {
 	jobs      []string
 	nics      map[string]*nicStatus
 	conf      conf.PoolConf
-	cachedNet *rpc.VxNet
+	cachedNet *rpc.VxNetInfo
 }
 
 func (a *Allocator) SetCachedVxnet(vxnet string) error {
@@ -89,7 +89,7 @@ func (a *Allocator) SetCachedVxnet(vxnet string) error {
 	return nil
 }
 
-func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
+func (a *Allocator) addNicStatus(nic *rpc.NicInfo, info *rpc.PodInfo) error {
 	if info != nil {
 		nic.Status = rpc.Status_USING
 	}
@@ -190,8 +190,8 @@ func (a *Allocator) cacheHostNic() {
 	}
 }
 
-func (a *Allocator) allocHostNic(args *rpc.PodInfo) *rpc.HostNic {
-	var result *rpc.HostNic
+func (a *Allocator) allocHostNic(args *rpc.PodInfo) *rpc.NicInfo {
+	var result *rpc.NicInfo
 	for _, nic := range a.nics {
 		if nic.isFree() {
 			err := a.addNicStatus(nic.nic, args)
@@ -209,7 +209,7 @@ func (a *Allocator) canAlloc() int {
 	return a.conf.MaxNic - len(a.nics)
 }
 
-func (a *Allocator) getVxnets(vxnet string) (*rpc.VxNet, error) {
+func (a *Allocator) getVxnets(vxnet string) (*rpc.VxNetInfo, error) {
 	for _, nic := range a.nics {
 		if nic.nic.VxNet.ID == vxnet {
 			return nic.nic.VxNet, nil
@@ -228,7 +228,7 @@ func getKey(info *rpc.PodInfo) string {
 	return info.Containter
 }
 
-func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
+func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.NicInfo, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -284,7 +284,7 @@ func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 	}
 }
 
-func (a *Allocator) FreeHostNic(args *rpc.PodInfo, peek bool) (*rpc.HostNic, error) {
+func (a *Allocator) FreeHostNic(args *rpc.PodInfo, peek bool) (*rpc.NicInfo, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -500,7 +500,7 @@ func SetupAllocator(conf conf.PoolConf) {
 	if err != nil {
 		logging.Panicf("failed to get created nics, err: %v", err)
 	}
-	var left []*rpc.HostNic
+	var left []*rpc.NicInfo
 	for _, nic := range nics {
 		if Alloc.nics[nic.ID] == nil {
 			link, err := netutils.LinkByMacAddr(nic.HardwareAddr)

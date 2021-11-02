@@ -8,21 +8,21 @@ type QingCloudAPI interface {
 	GetInstanceID() string
 
 	//bootstrap
-	GetCreatedNics(num, offsite int) ([]*rpc.HostNic, error)
+	GetCreatedNics(num, offsite int) ([]*rpc.NicInfo, error)
 
 	//vxnet info
-	GetVxNets([]string) (map[string]*rpc.VxNet, error)
+	GetVxNets([]string) (map[string]*rpc.VxNetInfo, error)
 
 	//job info
 	DescribeNicJobs(ids []string) ([]string, map[string]bool, error)
 
 	//nic operations
-	CreateNicsAndAttach(vxnet *rpc.VxNet, num int, ips []string) ([]*rpc.HostNic, string, error)
-	GetNics(nics []string) (map[string]*rpc.HostNic, error)
+	CreateNicsAndAttach(vxnet *rpc.VxNetInfo, num int, ips []string) ([]*rpc.NicInfo, string, error)
+	GetNics(nics []string) (map[string]*rpc.NicInfo, error)
 	DeleteNics(nicIDs []string) error
 	DeattachNics(nicIDs []string, sync bool) (string, error)
 	AttachNics(nicIDs []string) (string, error)
-	GetAttachedNics() ([]*rpc.HostNic, error)
+	GetAttachedNics() ([]*rpc.NicInfo, error)
 }
 
 var (
