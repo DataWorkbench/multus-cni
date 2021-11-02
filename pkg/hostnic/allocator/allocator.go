@@ -503,7 +503,7 @@ func SetupAllocator(conf conf.PoolConf) {
 	var left []*rpc.HostNic
 	for _, nic := range nics {
 		if Alloc.nics[nic.ID] == nil {
-			link, err := networkutils.NetworkHelper.LinkByMacAddr(nic.HardwareAddr)
+			link, err := netutils.LinkByMacAddr(nic.HardwareAddr)
 			if err != nil && err != constants.ErrNicNotFound {
 				logging.Panicf("failed to index link by mac %s, err: %v", nic.HardwareAddr, err)
 			}

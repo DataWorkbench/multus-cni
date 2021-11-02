@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
+
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s/controllers"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/networkutils"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/server"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/signals"
@@ -30,7 +30,7 @@ func main() {
 	// set up signals so we handle the first shutdown signals gracefully
 	stopCh := signals.SetupSignalHandler()
 
-	// load NicManager server config
+	// load ipam server config
 	config, err := conf.TryLoadFromDisk(constants.DefaultConfigName, constants.DefaultConfigPath)
 	if err != nil {
 		logging.Panicf("failed to load config: %v", err)
@@ -47,18 +47,11 @@ func main() {
 		Tag: config.Pool.Tag,
 	})
 	k8s.SetupK8sHelper()
-	networkutils.SetupNetworkHelper()
 	allocator.SetupAllocator(config.Pool)
 
 	// add daemon
-	err = k8s.K8sHelper.Mgr.Add(allocator.Alloc)
-	if err != nil {
-		logging.Panicf("Add Alloc to k8s manager failed, err: %v", err)
-	}
-	err = k8s.K8sHelper.Mgr.Add(server.NewNICMServer(config.Server))
-	if err != nil {
-		logging.Panicf("Add NICMServer to k8s manager failed, err: %v", err)
-	}
+	k8s.K8sHelper.Mgr.Add(allocator.Alloc)
+	k8s.K8sHelper.Mgr.Add(server.NewNICMServer(config.Server))
 
 	//add controllers
 	nodeReconciler := &controllers.NodeReconciler{}

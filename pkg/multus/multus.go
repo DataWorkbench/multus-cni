@@ -619,6 +619,11 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 	cniArgs := os.Getenv("CNI_ARGS")
 	for idx, delegate := range n.Delegates {
 		ifName := getIfname(delegate, args.IfName, idx)
+		if delegate.Conf.Type == "macvlan" {
+			if err := AddNetworkInterface(k8sArgs, delegate); err != nil {
+				return nil, cmdErr(k8sArgs, "error add network: %v", err)
+			}
+		}
 		rt, cniDeviceInfoPath := types.CreateCNIRuntimeConf(args, k8sArgs, ifName, n.RuntimeConfig, delegate)
 		if cniDeviceInfoPath != "" && delegate.ResourceName != "" && delegate.DeviceID != "" {
 			err = nadutils.CopyDeviceInfoForCNIFromDP(cniDeviceInfoPath, delegate.ResourceName, delegate.DeviceID)

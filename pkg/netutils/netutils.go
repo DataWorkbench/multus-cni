@@ -16,14 +16,16 @@
 package netutils
 
 import (
+	"net"
+	"strings"
+
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"github.com/containernetworking/cni/pkg/skel"
 	cnitypes "github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
-	"net"
-	"strings"
 )
 
 // DeleteDefaultGW removes the default gateway from marked interfaces.
@@ -116,4 +118,20 @@ func SetDefaultGW(args *skel.CmdArgs, ifName string, gateways []net.IP, res *cni
 	result.Routes = newResultDefaultRoutes
 	return result, err
 
+}
+
+
+func LinkByMacAddr(macAddr string) (netlink.Link, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, link := range links {
+		attr := link.Attrs()
+		if attr.HardwareAddr.String() == macAddr {
+			return link, nil
+		}
+	}
+	return nil, constants.ErrNicNotFound
 }
