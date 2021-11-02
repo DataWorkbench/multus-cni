@@ -100,6 +100,7 @@ func Panicf(format string, a ...interface{}) {
 	printf(PanicLevel, "========= Stack trace output ========")
 	printf(PanicLevel, "%+v", errors.New("Multus Panic"))
 	printf(PanicLevel, "========= Stack trace output end ========")
+	os.Exit(1)
 }
 
 // GetLoggingLevel gets current logging level

@@ -6,13 +6,17 @@ require (
 	github.com/containernetworking/cni v0.8.1
 	github.com/containernetworking/plugins v0.9.1
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/golang/protobuf v1.4.3
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.1-0.20210510153419-66a699ae3b05
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.3
 	github.com/pkg/errors v0.9.1
+	github.com/spf13/viper v1.7.1
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
+	github.com/yunify/qingcloud-sdk-go v0.0.0-20201229081442-29b014374d9d
 	golang.org/x/net v0.0.0-20210224082022-3d97a244fca7
+	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68
 	google.golang.org/grpc v1.27.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.20.10
@@ -21,9 +25,11 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/kubelet v0.0.0
 	k8s.io/kubernetes v1.20.10
+	sigs.k8s.io/controller-runtime v0.6.4
 )
 
 replace (
+	github.com/DATA-DOG/godog v0.10.0 => github.com/cucumber/godog v0.7.9
 	github.com/DataWorkbench/multus-cni => ../multus-cni
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	k8s.io/api => k8s.io/api v0.20.10
