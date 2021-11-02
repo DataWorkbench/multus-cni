@@ -2,17 +2,17 @@ package main
 
 import (
 	"flag"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/allocator"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/conf"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/constants"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/db"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/k8s"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/k8s/controllers"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/networkutils"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/qcclient"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/server"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/signals"
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s/controllers"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/networkutils"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/server"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/signals"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
 )
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 	// set up signals so we handle the first shutdown signals gracefully
 	stopCh := signals.SetupSignalHandler()
 
-	// load ipam server config
+	// load NicManager server config
 	config, err := conf.TryLoadFromDisk(constants.DefaultConfigName, constants.DefaultConfigPath)
 	if err != nil {
 		logging.Panicf("failed to load config: %v", err)
@@ -51,8 +51,14 @@ func main() {
 	allocator.SetupAllocator(config.Pool)
 
 	// add daemon
-	k8s.K8sHelper.Mgr.Add(allocator.Alloc)
-	k8s.K8sHelper.Mgr.Add(server.NewNICMServer(config.Server))
+	err = k8s.K8sHelper.Mgr.Add(allocator.Alloc)
+	if err != nil {
+		logging.Panicf("Add Alloc to k8s manager failed, err: %v", err)
+	}
+	err = k8s.K8sHelper.Mgr.Add(server.NewNICMServer(config.Server))
+	if err != nil {
+		logging.Panicf("Add NICMServer to k8s manager failed, err: %v", err)
+	}
 
 	//add controllers
 	nodeReconciler := &controllers.NodeReconciler{}

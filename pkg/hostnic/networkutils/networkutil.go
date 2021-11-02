@@ -5,8 +5,8 @@ import (
 	"net"
 	"os"
 
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/constants"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/vishvananda/netlink"

@@ -19,8 +19,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
-	"github.com/DataWorkBench/multus-cni/pkg/types"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/types"
 	v1 "k8s.io/api/core/v1"
 )
 

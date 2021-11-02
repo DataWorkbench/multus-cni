@@ -3,11 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/allocator"
-	conf2 "github.com/DataWorkBench/multus-cni/pkg/hostnic/conf"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/k8s"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/rpc"
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
+	conf2 "github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"google.golang.org/grpc"
 	"net"
 	"os"
@@ -56,7 +56,7 @@ func (s *NICMServer) run(stopCh <-chan struct{}) {
 }
 
 // AddNetwork handle add pod request
-func (s *NICMServer) AddNetwork(context context.Context, in *rpc.IPAMMessage) (*rpc.IPAMMessage, error) {
+func (s *NICMServer) AddNetwork(context context.Context, in *rpc.NICMMessage) (*rpc.NICMMessage, error) {
 	var (
 		err  error
 		info *rpc.PodInfo
@@ -82,7 +82,7 @@ func (s *NICMServer) AddNetwork(context context.Context, in *rpc.IPAMMessage) (*
 }
 
 // DelNetwork handle del pod request
-func (s *NICMServer) DelNetwork(context context.Context, in *rpc.IPAMMessage) (*rpc.IPAMMessage, error) {
+func (s *NICMServer) DelNetwork(context context.Context, in *rpc.NICMMessage) (*rpc.NICMMessage, error) {
 	var (
 		err error
 	)

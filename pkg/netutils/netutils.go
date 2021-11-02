@@ -16,7 +16,7 @@
 package netutils
 
 import (
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"github.com/containernetworking/cni/pkg/skel"
 	cnitypes "github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"

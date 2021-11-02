@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/constants"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/rpc"
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -52,7 +52,7 @@ func CloseDB() {
 	}
 }
 
-func SetNetworkInfo(key string, info *rpc.IPAMMessage) error {
+func SetNetworkInfo(key string, info *rpc.NICMMessage) error {
 	value, _ := json.Marshal(info)
 	return LevelDB.Put([]byte(key), value, nil)
 }
@@ -66,11 +66,11 @@ func DeleteNetworkInfo(key string) error {
 	return err
 }
 
-func Iterator(fn func(info *rpc.IPAMMessage) error) error {
+func Iterator(fn func(info *rpc.NICMMessage) error) error {
 	iter := LevelDB.NewIterator(nil, nil)
 	for iter.Next() {
 		var (
-			value rpc.IPAMMessage
+			value rpc.NICMMessage
 		)
 		// Remember that the contents of the returned slice should not be modified, and
 		// only valid until the next call to Next.

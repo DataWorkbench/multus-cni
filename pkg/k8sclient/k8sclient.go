@@ -35,9 +35,9 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 
-	"github.com/DataWorkBench/multus-cni/pkg/kubeletclient"
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
-	"github.com/DataWorkBench/multus-cni/pkg/types"
+	"github.com/DataWorkbench/multus-cni/pkg/kubeletclient"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/types"
 	"github.com/containernetworking/cni/libcni"
 	"github.com/containernetworking/cni/pkg/skel"
 	cnitypes "github.com/containernetworking/cni/pkg/types"

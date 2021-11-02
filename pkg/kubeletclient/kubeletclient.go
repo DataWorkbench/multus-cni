@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataWorkBench/multus-cni/pkg/checkpoint"
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
-	"github.com/DataWorkBench/multus-cni/pkg/types"
+	"github.com/DataWorkbench/multus-cni/pkg/checkpoint"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/types"
 	"golang.org/x/net/context"
 	v1 "k8s.io/api/core/v1"
 	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"

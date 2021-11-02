@@ -21,7 +21,7 @@ if [ -z "$VERSION" ]; then
 fi
 DATE=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" --iso-8601=seconds)
 COMMIT=${COMMIT:-$(git rev-parse --verify HEAD)}
-LDFLAGS="-X github.com/DataWorkBench/multus-cni/pkg/multus.version=${VERSION:-master} -X github.com/DataWorkBench/multus-cni/pkg/multus.commit=${COMMIT} -X github.com/DataWorkBench/multus-cni/pkg/multus.date=${DATE}"
+LDFLAGS="-X github.com/DataWorkbench/multus-cni/pkg/multus.version=${VERSION:-master} -X github.com/DataWorkbench/multus-cni/pkg/multus.commit=${COMMIT} -X github.com/DataWorkbench/multus-cni/pkg/multus.date=${DATE}"
 export CGO_ENABLED=0
 
 # this if... will be removed when gomodules goes default

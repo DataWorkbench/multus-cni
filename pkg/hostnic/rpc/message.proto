@@ -4,9 +4,9 @@ package rpc;
 
 // The service definition.
 service CNIBackend {
-  rpc AddNetwork (IPAMMessage) returns (IPAMMessage) {
+  rpc AddNetwork (NICMMessage) returns (NICMMessage) {
   }
-  rpc DelNetwork (IPAMMessage) returns (IPAMMessage) {
+  rpc DelNetwork (NICMMessage) returns (NICMMessage) {
   }
 }
 
@@ -49,7 +49,7 @@ message PodInfo {
   string VxNet = 9;
 }
 
-message IPAMMessage {
+message NICMMessage {
   PodInfo Args = 1;
   HostNic Nic = 2;
   bool Peek = 3;

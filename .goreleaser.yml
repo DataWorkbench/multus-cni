@@ -19,7 +19,7 @@ builds:
   - arm64
   - s390x
   ldflags:
-  - -X github.com/DataWorkBench/multus-cni/pkg/multus.version={{ .Tag }} -X github.com/DataWorkBench/multus-cni/pkg/multus.commit={{ .Commit }} -X github.com/DataWorkBench/multus-cni/pkg/multus.date={{ .Date }}
+  - -X github.com/DataWorkbench/multus-cni/pkg/multus.version={{ .Tag }} -X github.com/DataWorkbench/multus-cni/pkg/multus.commit={{ .Commit }} -X github.com/DataWorkbench/multus-cni/pkg/multus.date={{ .Date }}
 archives:
   - wrap_in_directory: true
 checksum:

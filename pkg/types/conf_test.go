@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	testhelpers "github.com/DataWorkBench/multus-cni/pkg/testing"
+	testhelpers "github.com/DataWorkbench/multus-cni/pkg/testing"
 	"github.com/containernetworking/cni/pkg/skel"
 	types020 "github.com/containernetworking/cni/pkg/types/020"
 	"github.com/containernetworking/plugins/pkg/ns"

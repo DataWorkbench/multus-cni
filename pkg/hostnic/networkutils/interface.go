@@ -1,10 +1,10 @@
 package networkutils
 
 import (
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"net"
 
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	"github.com/vishvananda/netlink"
 )
 

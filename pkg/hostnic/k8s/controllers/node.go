@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"context"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/allocator"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/k8s"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"

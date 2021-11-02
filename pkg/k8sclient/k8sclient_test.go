@@ -22,10 +22,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	testutils "github.com/DataWorkBench/multus-cni/pkg/testing"
+	testutils "github.com/DataWorkbench/multus-cni/pkg/testing"
 	types020 "github.com/containernetworking/cni/pkg/types/020"
 
-	"github.com/DataWorkBench/multus-cni/pkg/types"
+	"github.com/DataWorkbench/multus-cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/skel"
 
 	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
