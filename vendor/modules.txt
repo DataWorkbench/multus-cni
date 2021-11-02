@@ -28,7 +28,7 @@ github.com/evanphx/json-patch
 # github.com/fsnotify/fsnotify v1.4.9
 ## explicit
 github.com/fsnotify/fsnotify
-# github.com/go-logr/logr v0.2.0
+# github.com/go-logr/logr v0.2.0 => github.com/go-logr/logr v0.2.1
 github.com/go-logr/logr
 # github.com/gogo/protobuf v1.3.2 => github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/gogoproto
@@ -649,6 +649,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 sigs.k8s.io/yaml
 # github.com/DATA-DOG/godog v0.10.0 => github.com/cucumber/godog v0.7.9
 # github.com/DataWorkbench/multus-cni => ../multus-cni
+# github.com/go-logr/logr => github.com/go-logr/logr v0.2.1
 # github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 # k8s.io/api => k8s.io/api v0.20.10
 # k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.10

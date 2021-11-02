@@ -2,22 +2,23 @@ package allocator
 
 import (
 	"fmt"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/networkutils"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
-	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/netutils"
 )
 
 type nicStatus struct {
-	nic  *rpc.NicInfo
+	nic  *rpc.HostNic
 	info *rpc.PodInfo
 }
 
@@ -47,7 +48,7 @@ type Allocator struct {
 	jobs      []string
 	nics      map[string]*nicStatus
 	conf      conf.PoolConf
-	cachedNet *rpc.VxNetInfo
+	cachedNet *rpc.VxNet
 }
 
 func (a *Allocator) SetCachedVxnet(vxnet string) error {
@@ -89,7 +90,7 @@ func (a *Allocator) SetCachedVxnet(vxnet string) error {
 	return nil
 }
 
-func (a *Allocator) addNicStatus(nic *rpc.NicInfo, info *rpc.PodInfo) error {
+func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
 	if info != nil {
 		nic.Status = rpc.Status_USING
 	}
@@ -190,8 +191,8 @@ func (a *Allocator) cacheHostNic() {
 	}
 }
 
-func (a *Allocator) allocHostNic(args *rpc.PodInfo) *rpc.NicInfo {
-	var result *rpc.NicInfo
+func (a *Allocator) allocHostNic(args *rpc.PodInfo) *rpc.HostNic {
+	var result *rpc.HostNic
 	for _, nic := range a.nics {
 		if nic.isFree() {
 			err := a.addNicStatus(nic.nic, args)
@@ -209,7 +210,7 @@ func (a *Allocator) canAlloc() int {
 	return a.conf.MaxNic - len(a.nics)
 }
 
-func (a *Allocator) getVxnets(vxnet string) (*rpc.VxNetInfo, error) {
+func (a *Allocator) getVxnets(vxnet string) (*rpc.VxNet, error) {
 	for _, nic := range a.nics {
 		if nic.nic.VxNet.ID == vxnet {
 			return nic.nic.VxNet, nil
@@ -228,7 +229,7 @@ func getKey(info *rpc.PodInfo) string {
 	return info.Containter
 }
 
-func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.NicInfo, error) {
+func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -284,7 +285,7 @@ func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.NicInfo, error) {
 	}
 }
 
-func (a *Allocator) FreeHostNic(args *rpc.PodInfo, peek bool) (*rpc.NicInfo, error) {
+func (a *Allocator) FreeHostNic(args *rpc.PodInfo, peek bool) (*rpc.HostNic, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -500,7 +501,7 @@ func SetupAllocator(conf conf.PoolConf) {
 	if err != nil {
 		logging.Panicf("failed to get created nics, err: %v", err)
 	}
-	var left []*rpc.NicInfo
+	var left []*rpc.HostNic
 	for _, nic := range nics {
 		if Alloc.nics[nic.ID] == nil {
 			link, err := netutils.LinkByMacAddr(nic.HardwareAddr)

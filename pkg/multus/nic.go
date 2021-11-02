@@ -24,7 +24,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	c := rpc.NewCNIBackendClient(conn)
 	r, err := c.AddNetwork(context.Background(),
 		&rpc.NICMMessage{
-			Pod: &rpc.PodInfo{
+			Args: &rpc.PodInfo{
 				Name:       string(k8sArgs.K8S_POD_NAME),
 				Namespace:  string(k8sArgs.K8S_POD_NAMESPACE),
 				Containter: string(k8sArgs.K8S_POD_INFRA_CONTAINER_ID),
@@ -37,7 +37,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	//wait for nic attach
 	var link netlink.Link
 	for {
-		link, err = netutils.LinkByMacAddr(r.Pod.Nic)
+		link, err = netutils.LinkByMacAddr(r.Args.HostNic)
 		if err != nil {
 			return err
 		}
@@ -49,7 +49,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	if link.Attrs().Name != delegate.Conf.Master {
 		err = netlink.LinkSetName(link, delegate.Conf.Master)
 		if err != nil {
-			return fmt.Errorf("failed to set link %s name to %s: %v", r.Pod.Nic, delegate.Conf.Master, err)
+			return fmt.Errorf("failed to set link %s name to %s: %v", r.Args.HostNic, delegate.Conf.Master, err)
 		}
 	}
 	return nil

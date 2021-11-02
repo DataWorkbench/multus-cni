@@ -3,17 +3,19 @@ package server
 import (
 	"context"
 	"fmt"
+	"net"
+	"os"
+
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
 	conf2 "github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"google.golang.org/grpc"
-	"net"
-	"os"
 )
 
 type NICMServer struct {
+	rpc.UnimplementedCNIBackendServer
 	conf conf2.ServerConf
 }
 
