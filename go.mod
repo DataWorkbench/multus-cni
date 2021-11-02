@@ -1,4 +1,4 @@
-module github.com/DataWorkBench/multus-cni
+module github.com/DataWorkbench/multus-cni
 
 go 1.15
 
@@ -16,8 +16,8 @@ require (
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
 	github.com/yunify/qingcloud-sdk-go v0.0.0-20201229081442-29b014374d9d
 	golang.org/x/net v0.0.0-20210224082022-3d97a244fca7
-	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68
-	google.golang.org/grpc v1.27.1
+	google.golang.org/grpc v1.41.0
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.20.10
 	k8s.io/apimachinery v0.20.10

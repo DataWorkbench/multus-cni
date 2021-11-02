@@ -10,7 +10,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/DataWorkBench/multus-cni/pkg/types"
+	"github.com/DataWorkbench/multus-cni/pkg/types"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sTypes "k8s.io/apimachinery/pkg/types"

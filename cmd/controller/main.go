@@ -22,9 +22,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/DataWorkBench/multus-cni/pkg/config"
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
-	"github.com/DataWorkBench/multus-cni/pkg/multus"
+	"github.com/DataWorkbench/multus-cni/pkg/config"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/multus"
 )
 
 const (

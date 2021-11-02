@@ -2,8 +2,8 @@ package k8s
 
 import (
 	"context"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/constants"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
 	"reflect"

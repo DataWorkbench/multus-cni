@@ -2,17 +2,17 @@ package main
 
 import (
 	"flag"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/allocator"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/conf"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/constants"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/db"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/k8s"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/k8s/controllers"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/networkutils"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/qcclient"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/server"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/signals"
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
+
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s/controllers"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/server"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/signals"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
 )
 
 func main() {
@@ -47,7 +47,6 @@ func main() {
 		Tag: config.Pool.Tag,
 	})
 	k8s.SetupK8sHelper()
-	networkutils.SetupNetworkHelper()
 	allocator.SetupAllocator(config.Pool)
 
 	// add daemon

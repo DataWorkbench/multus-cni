@@ -3,7 +3,7 @@ package constants
 import (
 	"errors"
 	"fmt"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	"github.com/containernetworking/cni/pkg/types"
 )
 

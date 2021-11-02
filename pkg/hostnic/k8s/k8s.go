@@ -3,7 +3,7 @@ package k8s
 import (
 	"os"
 
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"

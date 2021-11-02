@@ -1,6 +1,6 @@
 package qcclient
 
-import "github.com/DataWorkBench/multus-cni/pkg/hostnic/rpc"
+import "github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 
 // QingCloudAPI is a wrapper interface of qingcloud api
 type QingCloudAPI interface {

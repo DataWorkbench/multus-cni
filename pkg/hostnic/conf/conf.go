@@ -2,7 +2,7 @@ package conf
 
 import (
 	"fmt"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/spf13/viper"
 )
 

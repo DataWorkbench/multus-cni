@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/DataWorkBench/multus-cni/pkg/multus"
+	"github.com/DataWorkbench/multus-cni/pkg/multus"
 	"github.com/containernetworking/cni/pkg/skel"
 	cniversion "github.com/containernetworking/cni/pkg/version"
 )

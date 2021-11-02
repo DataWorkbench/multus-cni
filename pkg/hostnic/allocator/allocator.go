@@ -2,18 +2,19 @@ package allocator
 
 import (
 	"fmt"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/conf"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/constants"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/db"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/k8s"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/networkutils"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/qcclient"
-	"github.com/DataWorkBench/multus-cni/pkg/hostnic/rpc"
-	"github.com/DataWorkBench/multus-cni/pkg/logging"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/netutils"
 )
 
 type nicStatus struct {
@@ -24,7 +25,7 @@ type nicStatus struct {
 func (n *nicStatus) setStatus(status rpc.Status) error {
 	save := n.nic.Status
 	n.nic.Status = status
-	if err := db.SetNetworkInfo(n.nic.ID, &rpc.IPAMMessage{
+	if err := db.SetNetworkInfo(n.nic.ID, &rpc.NICMMessage{
 		Args: n.info,
 		Nic:  n.nic,
 	}); err != nil {
@@ -111,7 +112,7 @@ func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
 		info: info,
 	}
 
-	err := db.SetNetworkInfo(status.nic.ID, &rpc.IPAMMessage{
+	err := db.SetNetworkInfo(status.nic.ID, &rpc.NICMMessage{
 		Args: status.info,
 		Nic:  status.nic,
 	})
@@ -475,7 +476,7 @@ func SetupAllocator(conf conf.PoolConf) {
 		conf: conf,
 	}
 
-	err := db.Iterator(func(info *rpc.IPAMMessage) error {
+	err := db.Iterator(func(info *rpc.NICMMessage) error {
 		if info.Nic.Status == rpc.Status_USING {
 			logging.Verbosef("restore pod %v to nic %s", info.Args, info.Nic.ID)
 		} else {
@@ -503,7 +504,7 @@ func SetupAllocator(conf conf.PoolConf) {
 	var left []*rpc.HostNic
 	for _, nic := range nics {
 		if Alloc.nics[nic.ID] == nil {
-			link, err := networkutils.NetworkHelper.LinkByMacAddr(nic.HardwareAddr)
+			link, err := netutils.LinkByMacAddr(nic.HardwareAddr)
 			if err != nil && err != constants.ErrNicNotFound {
 				logging.Panicf("failed to index link by mac %s, err: %v", nic.HardwareAddr, err)
 			}

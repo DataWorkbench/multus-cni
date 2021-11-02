@@ -86,9 +86,14 @@ type BandwidthEntry struct {
 	EgressBurst int `json:"egressBurst"`
 }
 
+type CompatibleNetConf struct {
+	types.NetConf
+	Master string `json:"master"`
+}
+
 // DelegateNetConf for net-attach-def for pod
 type DelegateNetConf struct {
-	Conf                  types.NetConf
+	Conf                  CompatibleNetConf
 	ConfList              types.NetConfList
 	Name                  string
 	IfnameRequest         string          `json:"ifnameRequest,omitempty"`
