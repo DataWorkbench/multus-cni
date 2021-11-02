@@ -10,23 +10,40 @@ service CNIBackend {
   }
 }
 
-message VxNet {
+message VxNetInfo {
   string ID = 1;
   string Gateway = 2;
   string Network = 3;
   string RouterID = 4;
 }
 
+enum Status {
+  FREE = 0;
+  USING = 1;
+  DELETING = 2;
+  ERROR = 3;
+  DELETED = 4;
+}
+
+message NicInfo {
+  VxNetInfo VxNet = 1;
+  string ID = 2;
+  string HardwareAddr = 3;
+  string PrimaryAddress = 4;
+  Status Status = 5;
+}
+
 message PodInfo {
   string Name = 1;
   string Namespace = 2;
   string Containter = 3;
-  string Nic = 8;
+  string HostNic = 8;
   string VxNet = 9;
 }
 
 message NICMMessage {
   PodInfo Pod = 1;
-  bool Peek = 2;
-  bool Delete = 3;
+  NicInfo Nic = 2;
+  bool Peek = 3;
+  bool Delete = 4;
 }
