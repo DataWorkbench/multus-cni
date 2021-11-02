@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/checkpoint"
-	"gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/logging"
-	"gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/types"
+	"github.com/DataWorkbench/multus-cni/pkg/checkpoint"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/types"
 	v1 "k8s.io/api/core/v1"
 	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"

@@ -22,7 +22,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
 )
 
 // MultusDefaultNetworkName holds the default name of the multus network

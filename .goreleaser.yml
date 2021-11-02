@@ -19,7 +19,7 @@ builds:
   - arm64
   - s390x
   ldflags:
-  - -X gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/multus.version={{ .Tag }} -X gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/multus.commit={{ .Commit }} -X gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/multus.date={{ .Date }}
+  - -X github.com/DataWorkbench/multus-cni/pkg/multus.version={{ .Tag }} -X github.com/DataWorkbench/multus-cni/pkg/multus.commit={{ .Commit }} -X github.com/DataWorkbench/multus-cni/pkg/multus.date={{ .Date }}
 archives:
   - wrap_in_directory: true
 checksum:

@@ -1,4 +1,4 @@
-module gopkg.in/k8snetworkplumbingwg/multus-cni.v3
+module github.com/DataWorkbench/multus-cni
 
 go 1.16
 

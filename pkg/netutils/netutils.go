@@ -21,7 +21,7 @@ import (
 	"github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
-	"gopkg.in/k8snetworkplumbingwg/multus-cni.v3/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"net"
 	"strings"
 )
