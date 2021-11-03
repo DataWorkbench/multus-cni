@@ -125,23 +125,6 @@ spec:
               name: qingcloud-cfg
               readOnly: true
       hostNetwork: true
-      initContainers:
-        - args:
-            - /app/install_hostnic.sh
-          command:
-            - /bin/sh
-          image: dataworkbench/nic-manager:latest
-          imagePullPolicy: IfNotPresent
-          name: hostnic-init
-          securityContext:
-            privileged: true
-          volumeMounts:
-            - mountPath: /opt/cni/bin
-              name: cni-bin-dir
-            - mountPath: /etc/cni/net.d
-              name: cni-net-dir
-            - mountPath: /etc/hostnic/
-              name: hostnic-cfg
       priorityClassName: system-node-critical
       serviceAccountName: hostnic-node
       tolerations:
