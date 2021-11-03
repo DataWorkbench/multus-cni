@@ -1,223 +1,180 @@
----
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
+apiVersion: v1
+kind: ServiceAccount
 metadata:
-  name: network-attachment-definitions.k8s.cni.cncf.io
-spec:
-  group: k8s.cni.cncf.io
-  scope: Namespaced
-  names:
-    plural: network-attachment-definitions
-    singular: network-attachment-definition
-    kind: NetworkAttachmentDefinition
-    shortNames:
-    - net-attach-def
-  versions:
-    - name: v1
-      served: true
-      storage: true
-      schema:
-        openAPIV3Schema:
-          description: 'NetworkAttachmentDefinition is a CRD schema specified by the Network Plumbing
-            Working Group to express the intent for attaching pods to one or more logical or physical
-            networks. More information available at: https://github.com/k8snetworkplumbingwg/multi-net-spec'
-          type: object
-          properties:
-            apiVersion:
-              description: 'APIVersion defines the versioned schema of this represen
-                tation of an object. Servers should convert recognized schemas to the
-                latest internal value, and may reject unrecognized values. More info:
-                https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-              type: string
-            kind:
-              description: 'Kind is a string value representing the REST resource this
-                object represents. Servers may infer this from the endpoint the client
-                submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-              type: string
-            metadata:
-              type: object
-            spec:
-              description: 'NetworkAttachmentDefinition spec defines the desired state of a network attachment'
-              type: object
-              properties:
-                config:
-                  description: 'NetworkAttachmentDefinition config is a JSON-formatted CNI configuration'
-                  type: string
+  name: nic-manager-node
+  namespace: kube-system
 ---
-kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
 metadata:
-  name: multus
+  name: nic-manager-node
 rules:
-  - apiGroups: ["k8s.cni.cncf.io"]
-    resources:
-      - '*'
-    verbs:
-      - '*'
   - apiGroups:
       - ""
     resources:
       - pods
-      - pods/status
+      - nodes
+      - namespaces
     verbs:
+      - list
+      - watch
       - get
       - update
-  - apiGroups:
-      - ""
-      - events.k8s.io
-    resources:
-      - events
-    verbs:
-      - create
       - patch
-      - update
+  - apiGroups:
+      - extensions
+    resources:
+      - daemonsets
+    verbs:
+      - list
+      - watch
 ---
-kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
-  name: multus
+  name: nic-manager-node
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: multus
+  name: nic-manager-node
 subjects:
-- kind: ServiceAccount
-  name: multus
-  namespace: kube-system
+  - kind: ServiceAccount
+    name: nic-manager-node
+    namespace: kube-system
 ---
 apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: multus
-  namespace: kube-system
----
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: multus-cni-config
-  namespace: kube-system
-  labels:
-    tier: node
-    app: multus
 data:
-  # NOTE: If you'd prefer to manually apply a configuration file, you may create one here.
-  # In the case you'd like to customize the Multus installation, you should change the arguments to the Multus pod
-  # change the "args" line below from
-  # - "--multus-conf-file=auto"
-  # to:
-  # "--multus-conf-file=/tmp/multus-conf/70-multus.conf"
-  # Additionally -- you should ensure that the name "70-multus.conf" is the alphabetically first name in the
-  # /etc/cni/net.d/ directory on each node, otherwise, it will not be used by the Kubelet.
-  cni-conf.json: |
+  hostnic: |
     {
-      "name": "multus-cni-network",
-      "type": "multus",
-      "capabilities": {
-        "portMappings": true
-      },
-      "delegates": [
-        {
-          "cniVersion": "0.3.1",
-          "name": "default-cni-network",
-          "plugins": [
-            {
-              "type": "flannel",
-              "name": "flannel.1",
-                "delegate": {
-                  "isDefaultGateway": true,
-                  "hairpinMode": true
-                }
-              },
-              {
-                "type": "portmap",
-                "capabilities": {
-                  "portMappings": true
-                }
-              }
-          ]
-        }
-      ],
-      "kubeconfig": "/etc/cni/net.d/multus.d/multus.kubeconfig"
+      "pool":{
+        "poolHigh":5,
+        "poolLow":3,
+        "maxNic":60
+      }
     }
+  hostnic-cni: |
+    {
+      "cniVersion": "0.3.0",
+      "name": "hostnic",
+      "type": "hostnic",
+      "serviceCIDR" : "10.233.0.0/18",
+      "hairpin": false,
+      "natMark": "0x10000"
+    }
+kind: ConfigMap
+metadata:
+  name: nic-manager-cfg-cm
+  namespace: kube-system
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kube-multus-ds
-  namespace: kube-system
   labels:
-    tier: node
-    app: multus
-    name: multus
+    app: nic-manager-node
+  name: nic-manager-node
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
-      name: multus
-  updateStrategy:
-    type: RollingUpdate
+      app: nic-manager-node
   template:
     metadata:
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ""
       labels:
-        tier: node
-        app: multus
-        name: multus
+        app: nic-manager-node
     spec:
-      hostNetwork: true
-      tolerations:
-      - operator: Exists
-        effect: NoSchedule
-      serviceAccountName: multus
       containers:
-      - name: kube-multus
-        image: ghcr.io/k8snetworkplumbingwg/multus-cni:stable
-        command: ["/entrypoint.sh"]
-        args:
-        - "--multus-conf-file=auto"
-        - "--cni-version=0.3.1"
-        resources:
-          requests:
-            cpu: "100m"
-            memory: "50Mi"
-          limits:
-            cpu: "100m"
-            memory: "50Mi"
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - name: cni
-          mountPath: /host/etc/cni/net.d
-        - name: cnibin
-          mountPath: /host/opt/cni/bin
-        - name: multus-cfg
-          mountPath: /tmp/multus-conf
-      initContainers:
-        - name: install-multus-binary
-          image: ghcr.io/k8snetworkplumbingwg/multus-cni:stable
-          command:
-            - "cp"
-            - "/usr/src/multus-cni/bin/multus"
-            - "/host/opt/cni/bin/multus"
+        - command:
+            - /usr/src/multus-cni/bin/multus-nic-manager
+          env:
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          image: dataworkbench/nic-manager:latest
+          imagePullPolicy: IfNotPresent
+          name: nic-manager-node
+          ports:
+            - containerPort: 61678
+              name: metrics
           resources:
             requests:
-              cpu: "10m"
-              memory: "15Mi"
+              cpu: 100m
           securityContext:
             privileged: true
           volumeMounts:
-            - name: cnibin
-              mountPath: /host/opt/cni/bin
-              mountPropagation: Bidirectional
-      terminationGracePeriodSeconds: 10
+            - mountPath: /opt/cni/bin
+              name: cni-bin-dir
+            - mountPath: /etc/cni/net.d
+              name: cni-net-dir
+            - mountPath: /etc/hostnic/
+              name: hostnic-cfg
+            - mountPath: /var/lib/hostnic
+              name: hostnic-db
+            - mountPath: /var/run/hostnic
+              name: hostnic-run
+            - mountPath: /root/.qingcloud/
+              name: apiaccesskey
+              readOnly: true
+            - mountPath: /etc/qingcloud/
+              name: qingcloud-cfg
+              readOnly: true
+      hostNetwork: true
+      initContainers:
+        - args:
+            - /app/install_hostnic.sh
+          command:
+            - /bin/sh
+          image: dataworkbench/nic-manager:latest
+          imagePullPolicy: IfNotPresent
+          name: hostnic-init
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /opt/cni/bin
+              name: cni-bin-dir
+            - mountPath: /etc/cni/net.d
+              name: cni-net-dir
+            - mountPath: /etc/hostnic/
+              name: hostnic-cfg
+      priorityClassName: system-node-critical
+      serviceAccountName: hostnic-node
+      tolerations:
+        - operator: Exists
       volumes:
-        - name: cni
-          hostPath:
-            path: /etc/cni/net.d
-        - name: cnibin
-          hostPath:
+        - hostPath:
             path: /opt/cni/bin
-        - name: multus-cfg
-          configMap:
-            name: multus-cni-config
+          name: cni-bin-dir
+        - hostPath:
+            path: /etc/cni/net.d
+          name: cni-net-dir
+        - hostPath:
+            path: /var/lib/hostnic
+          name: hostnic-db
+        - hostPath:
+            path: /var/run/hostnic
+          name: hostnic-run
+        - configMap:
             items:
-            - key: cni-conf.json
-              path: 70-multus.conf
+              - key: hostnic
+                path: hostnic.json
+              - key: hostnic-cni
+                path: 10-hostnic.conf
+            name: nic-manager-cfg-cm
+          name: hostnic-cfg
+        - name: apiaccesskey
+          secret:
+            items:
+              - key: config.yaml
+                path: config.yaml
+            secretName: qcsecret
+        - hostPath:
+            path: /etc/qingcloud
+          name: qingcloud-cfg
+  updateStrategy:
+    type: RollingUpdate
