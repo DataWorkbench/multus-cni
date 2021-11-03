@@ -233,56 +233,55 @@ func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	var result *nicStatus
-	for _, nic := range a.nics {
-		if nic.isUsing() && getKey(nic.info) == getKey(args) {
-			result = nic
-		}
+	// var result *nicStatus
+	// for _, nic := range a.nics {
+	// if nic.isUsing() && getKey(nic.info) == getKey(args) {
+	// result = nic
+	// }
+	// }
+	// if result != nil {
+	// return result.nic, nil
+	// }
+	//
+	// if args.VxNet == "" {
+	// result := a.allocHostNic(args)
+	// if result != nil {
+	// return result, nil
+	// }
+	//
+	// a.cacheHostNic()
+	//
+	// result = a.allocHostNic(args)
+	// if result != nil {
+	// return result, nil
+	// }
+	//
+	// return nil, constants.ErrNoAvailableNIC
+	// } else {
+	// if a.canAlloc() <= 0 {
+	// return nil, constants.ErrNoAvailableNIC
+	// }
+	//
+	var ips []string
+	if args.PodIP != "" {
+		ips = append(ips, args.PodIP)
 	}
-	if result != nil {
-		return result.nic, nil
+	vxnet, err := a.getVxnets(args.VxNet)
+	if err != nil {
+		return nil, err
 	}
-
-	if args.VxNet == "" {
-		result := a.allocHostNic(args)
-		if result != nil {
-			return result, nil
-		}
-
-		a.cacheHostNic()
-
-		result = a.allocHostNic(args)
-		if result != nil {
-			return result, nil
-		}
-
-		return nil, constants.ErrNoAvailableNIC
-	} else {
-		if a.canAlloc() <= 0 {
-			return nil, constants.ErrNoAvailableNIC
-		}
-
-		var ips []string
-		if args.PodIP != "" {
-			ips = append(ips, args.PodIP)
-		}
-		vxnet, err := a.getVxnets(args.VxNet)
-		if err != nil {
-			return nil, err
-		}
-		nics, jobID, err := qcclient.QClient.CreateNicsAndAttach(vxnet, 1, ips)
-		if err != nil {
-			return nil, err
-		}
-		logging.Verbosef("create and attach nic %v", nics)
-		a.jobs = append(a.jobs, jobID)
-		nics[0].Reserved = true
-		err = a.addNicStatus(nics[0], args)
-		if err != nil {
-			return nil, err
-		}
-		return nics[0], nil
+	nics, jobID, err := qcclient.QClient.CreateNicsAndAttach(vxnet, 1, ips)
+	if err != nil {
+		return nil, err
 	}
+	logging.Verbosef("create and attach nic %v, jobid %s", nics, jobID)
+	// a.jobs = append(a.jobs, jobID)
+	// nics[0].Reserved = true
+	// err = a.addNicStatus(nics[0], args)
+	// if err != nil {
+	// return nil, err
+	// }
+	return nics[0], nil
 }
 
 func (a *Allocator) FreeHostNic(args *rpc.PodInfo, peek bool) (*rpc.HostNic, error) {

@@ -617,9 +617,11 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 	var result, tmpResult cnitypes.Result
 	var netStatus []nettypes.NetworkStatus
 	cniArgs := os.Getenv("CNI_ARGS")
+	isConfigureRoute := false
 	for idx, delegate := range n.Delegates {
 		ifName := getIfname(delegate, args.IfName, idx)
-		if delegate.Conf.Type == "macvlan" {
+		isMacvlanType := delegate.Conf.Type == "macvlan"
+		if isMacvlanType {
 			if err := AddNetworkInterface(k8sArgs, delegate); err != nil {
 				return nil, cmdErr(k8sArgs, "error add network: %v", err)
 			}
@@ -680,6 +682,31 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 			}
 		}
 
+		// Here we'll configure calico&&service route
+		if isMacvlanType && !isConfigureRoute {
+			isConfigureRoute = true
+			link, err := netlink.LinkByName(ifName)
+			if err != nil {
+				return nil, cmdErr(k8sArgs, "error configure route: %v", err)
+			}
+			configureIPNets := []string{"10.10.0.0/16", "10.96.0.0/16"}
+			gateway := "169.254.1.1"
+			routes := []*netlink.Route{}
+			for _, IPNet := range configureIPNets {
+				_, ipNet, _ := net.ParseCIDR(IPNet)
+				routes = append(routes, &netlink.Route{
+					LinkIndex: link.Attrs().Index,
+					Dst: &net.IPNet{
+						IP:   ipNet.IP,
+						Mask: ipNet.Mask,
+					},
+					Gw: net.ParseIP(gateway),
+				})
+			}
+			if err := netutils.ConfigureRoute(link, routes); err != nil {
+				return nil, cmdErr(k8sArgs, "error configure route: %v", err)
+			}
+		}
 		// Master plugin result is always used if present
 		if delegate.MasterPlugin || result == nil {
 			result = tmpResult

@@ -43,6 +43,7 @@ if [ "$GO111MODULE" == "off" ]; then
 	go build -o ${PWD}/bin/multus -tags no_openssl -ldflags "${LDFLAGS}" "$@" ${REPO_PATH}/cmd
 	go build -o ${PWD}/bin/generate-kubeconfig -tags no_openssl -ldflags "${LDFLAGS}" ${REPO_PATH}/cmd/config-generation
 	go build -o ${PWD}/bin/multus-daemon -tags no_openssl -ldflags "${LDFLAGS}" "$@" ${REPO_PATH}/cmd/controller/
+	go build -o ${PWD}/bin/multus-nic-manager -tags no_openssl -ldflags "${LDFLAGS}" "$@" ${REPO_PATH}/cmd/nic-manager/
 else
 	# build with go modules
 	export GO111MODULE=on
@@ -50,11 +51,13 @@ else
 	if [ -n "$MODMODE" ]; then
 		BUILD_ARGS+=(-mod "$MODMODE")
 	fi
-
+	export CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 	echo "Building plugins"
 	go build ${BUILD_ARGS[*]} -ldflags "${LDFLAGS}" "$@" ./cmd
 	echo "Building spec generators"
 	go build -o "${DEST_DIR}"/generate-kubeconfig -ldflags "${LDFLAGS}" ./cmd/config-generation
 	echo "Building multus controller"
 	go build -o "${DEST_DIR}"/multus-daemon -ldflags "${LDFLAGS}" ./cmd/controller/
+	echo "Building multus nic-manager"
+	go build -o "${DEST_DIR}"/multus-nic-manager -ldflags "${LDFLAGS}" ./cmd/nic-manager/
 fi
