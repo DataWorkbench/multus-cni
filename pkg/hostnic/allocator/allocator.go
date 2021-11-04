@@ -211,6 +211,10 @@ func (a *Allocator) canAlloc() int {
 }
 
 func (a *Allocator) getVxnets(vxnet string) (*rpc.VxNet, error) {
+	if vxnet == "" {
+		return nil, logging.Errorf("vxNet cannot be empty!")
+	}
+
 	for _, nic := range a.nics {
 		if nic.nic.VxNet.ID == vxnet {
 			return nic.nic.VxNet, nil
@@ -243,25 +247,6 @@ func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 		return result.nic, nil
 	}
 
-	// if args.VxNet == "" {
-	// result := a.allocHostNic(args)
-	// if result != nil {
-	// return result, nil
-	// }
-	//
-	// a.cacheHostNic()
-	//
-	// result = a.allocHostNic(args)
-	// if result != nil {
-	// return result, nil
-	// }
-	//
-	// return nil, constants.ErrNoAvailableNIC
-	// } else {
-	// if a.canAlloc() <= 0 {
-	// return nil, constants.ErrNoAvailableNIC
-	// }
-	//
 	var ips []string
 	if args.PodIP != "" {
 		ips = append(ips, args.PodIP)

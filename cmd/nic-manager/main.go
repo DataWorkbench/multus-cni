@@ -38,8 +38,8 @@ const (
 	defaultMultusConfigFile             = "auto"
 	defaultMultusGlobalNamespaces       = ""
 	defaultMultusKubeconfigPath         = "/etc/cni/net.d/multus.d/multus.kubeconfig"
-	defaultMultusLogFile                = ""
-	defaultMultusLogLevel               = ""
+	defaultMultusLogFile                = "/var/log/nic-manager/cni/cni.log"
+	defaultMultusLogLevel               = "debug"
 	defaultMultusLogToStdErr            = false
 	defaultMultusMasterCNIFile          = ""
 	defaultMultusNamespaceIsolation     = false
