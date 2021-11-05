@@ -16,9 +16,7 @@
 package netutils
 
 import (
-	"fmt"
 	"net"
-	"os"
 	"strings"
 
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
@@ -135,17 +133,4 @@ func LinkByMacAddr(macAddr string) (netlink.Link, error) {
 		}
 	}
 	return nil, constants.ErrNicNotFound
-}
-
-func ConfigureRoute(link netlink.Link, routes []*netlink.Route) error {
-	if err := netlink.LinkSetUp(link); err != nil {
-		return fmt.Errorf("failed to set %q UP: %v", link.Attrs().Name, err)
-	}
-	for _, route := range routes {
-		if err := netlink.RouteReplace(route); err != nil && !os.IsExist(err) {
-			return fmt.Errorf("failed to add route %v: %v", route, err)
-		}
-	}
-
-	return nil
 }

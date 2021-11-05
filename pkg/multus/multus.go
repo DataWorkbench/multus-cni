@@ -685,28 +685,12 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 		// Here we'll configure calico&&service route
 		if isMacvlanType && !isConfigureRoute {
 			isConfigureRoute = true
-			link, err := netlink.LinkByName(ifName)
+			err = ConfigureK8sRoute(args, "eth0")
 			if err != nil {
-				return nil, cmdErr(k8sArgs, "error configure route: %v", err)
-			}
-			configureIPNets := []string{"10.10.0.0/16", "10.96.0.0/16"}
-			gateway := "169.254.1.1"
-			routes := []*netlink.Route{}
-			for _, IPNet := range configureIPNets {
-				_, ipNet, _ := net.ParseCIDR(IPNet)
-				routes = append(routes, &netlink.Route{
-					LinkIndex: link.Attrs().Index,
-					Dst: &net.IPNet{
-						IP:   ipNet.IP,
-						Mask: ipNet.Mask,
-					},
-					Gw: net.ParseIP(gateway),
-				})
-			}
-			if err := netutils.ConfigureRoute(link, routes); err != nil {
-				return nil, cmdErr(k8sArgs, "error configure route: %v", err)
+				return nil, cmdErr(k8sArgs, "error configure k8s route: %v", err)
 			}
 		}
+
 		// Master plugin result is always used if present
 		if delegate.MasterPlugin || result == nil {
 			result = tmpResult
@@ -878,6 +862,12 @@ func CmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) er
 
 	// set CNIVersion in delegate CNI config if there is no CNIVersion and multus conf have CNIVersion.
 	for _, v := range in.Delegates {
+		isMacvlanType := v.Conf.Type == "macvlan"
+		if isMacvlanType {
+			if err := DelNetworkInterface(k8sArgs); err != nil {
+				return cmdErr(k8sArgs, "error delete network: %v", err)
+			}
+		}
 		if v.ConfListPlugin == true && v.ConfList.CNIVersion == "" && in.CNIVersion != "" {
 			v.ConfList.CNIVersion = in.CNIVersion
 			v.Bytes, err = json.Marshal(v.ConfList)
