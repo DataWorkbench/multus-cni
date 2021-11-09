@@ -15,10 +15,10 @@ import (
 const (
 	// NodeNameEnvKey is env to get the name of current node
 	NodeNameEnvKey   = "MY_NODE_NAME"
-	AnnoHostNicVxnet = "hostnic.network.kubesphere.io/vxnet"
-	AnnoHostNic      = "hostnic.network.kubesphere.io/nic"
-	AnnoHostNicIP    = "hostnic.network.kubesphere.io/ip"
-	AnnoHostNicType  = "hostnic.network.kubesphere.io/type"
+	AnnoHostNicVxnet = "multus.network.dataworkbench.io/vxnet"
+	AnnoHostNic      = "multus.network.dataworkbench.io/nic"
+	AnnoHostNicIP    = "multus.network.dataworkbench.io/ip"
+	AnnoHostNicType  = "multus.network.dataworkbench.io/type"
 )
 
 type Helper struct {

@@ -57,26 +57,126 @@ func SetNetworkInfo(key string, info *rpc.NICMMessage) error {
 	return LevelDB.Put([]byte(key), value, nil)
 }
 
-func DeleteNetworkInfo(key string) error {
-	err := LevelDB.Delete([]byte(key), nil)
+func DeleteNetworkInfo(nicID string) error {
+	err := LevelDB.Delete([]byte(nicID), nil)
 	if err == leveldb.ErrNotFound {
 		return constants.ErrNicNotFound
 	}
 
-	return err
+	crnKey := getContainerRelatedNicKey(nicID)
+	return LevelDB.Delete(crnKey, nil)
 }
 
-func Iterator(fn func(info *rpc.NICMMessage) error) error {
+func getContainerRelatedNicKey(nicID string) []byte {
+	return []byte(constants.ContainerRelatedPrefix + nicID)
+}
+
+func GetContainerRelatedNicInfo(nicID string) ([]string, error) {
+	crnKey := getContainerRelatedNicKey(nicID)
+
+	value, err := LevelDB.Get(crnKey, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	containerIDs := []string{}
+	err = json.Unmarshal(value, &containerIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	return containerIDs, nil
+}
+
+func AddRelatedContainer(nicID, containerID string) error {
+	key := getContainerRelatedNicKey(nicID)
+	hasKey, err := LevelDB.Has(key, nil)
+	if err != nil {
+		return err
+	}
+
+	if !hasKey {
+		value, err := json.Marshal([]string{containerID})
+		if err != nil {
+			return err
+		}
+		return LevelDB.Put(key, value, nil)
+	}
+
+	containerIDJson, err := LevelDB.Get(key, nil)
+	if err != nil {
+		return err
+	}
+
+	oldContainerIDs := []string{}
+	err = json.Unmarshal(containerIDJson, &oldContainerIDs)
+	if err != nil {
+		return err
+	}
+
+	for _, _containerID := range oldContainerIDs {
+		if _containerID == containerID {
+			return nil
+		}
+	}
+
+	oldContainerIDs = append(oldContainerIDs, containerID)
+	value, err := json.Marshal(oldContainerIDs)
+	if err != nil {
+		return err
+	}
+	return LevelDB.Put(key, value, nil)
+}
+
+// set nic related container array empty here
+// wait for Sync thread to release Nic resource
+func DeleteRelatedContainer(nicID, containerID string) (err error) {
+	key := getContainerRelatedNicKey(nicID)
+	hasKey, err := LevelDB.Has(key, nil)
+	if err != nil {
+		return
+	}
+
+	if !hasKey {
+		err = logging.Errorf("No valid Nic found for container %s", containerID)
+		return
+	}
+
+	containerIDJson, err := LevelDB.Get(key, nil)
+	if err != nil {
+		return
+	}
+
+	oldContainerIDs := []string{}
+	err = json.Unmarshal(containerIDJson, &oldContainerIDs)
+	if err != nil {
+		return
+	}
+
+	newContainerIDs := []string{}
+	for _, _containerID := range oldContainerIDs {
+		if _containerID != containerID {
+			newContainerIDs = append(newContainerIDs, _containerID)
+		}
+	}
+
+	if len(oldContainerIDs) == len(newContainerIDs) {
+		err = logging.Errorf("No valid Nic found for container %s in DB", containerID)
+		return
+	}
+
+	value, err := json.Marshal(newContainerIDs)
+	if err != nil {
+		return
+	}
+	err = LevelDB.Put(key, value, nil)
+	return
+}
+
+func Iterator(fn func(key, value []byte) error) error {
 	iter := LevelDB.NewIterator(nil, nil)
 	for iter.Next() {
-		var (
-			value rpc.NICMMessage
-		)
-		// Remember that the contents of the returned slice should not be modified, and
-		// only valid until the next call to Next.
-		json.Unmarshal(iter.Value(), &value)
-
-		fn(&value)
+		_ = fn(iter.Key(), iter.Value())
 	}
 	iter.Release()
 

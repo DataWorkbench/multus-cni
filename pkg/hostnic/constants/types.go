@@ -23,7 +23,8 @@ const (
 	VxnetNicNumLimit      = 252
 	DefaultRouteTableBase = 260
 
-	NicPrefix = "hostnic_"
+	NicPrefix              = "multus_hostnic_"
+	ContainerRelatedPrefix = "pod_related_"
 
 	HostNicPassThrough = "passthrough"
 	HostNicVeth        = "veth"

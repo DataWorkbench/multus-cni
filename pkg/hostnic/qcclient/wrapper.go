@@ -116,11 +116,12 @@ func (q *qingcloudAPIWrapper) GetInstanceID() string {
 	return q.instanceID
 }
 
-func (q *qingcloudAPIWrapper) GetCreatedNics(num, offset int) ([]*rpc.HostNic, error) {
+func (q *qingcloudAPIWrapper) GetCreatedNics(num, offset int, vxNet, instanceID string) ([]*rpc.HostNic, error) {
 	input := &service.DescribeNicsInput{
-		Limit:   &num,
-		Offset:  &offset,
-		NICName: service.String(constants.NicPrefix + q.instanceID),
+		Limit:     &num,
+		Offset:    &offset,
+		VxNets:    []*string{&vxNet},
+		Instances: []*string{&instanceID},
 	}
 
 	output, err := q.nicService.DescribeNics(input)
@@ -349,6 +350,7 @@ func (q *qingcloudAPIWrapper) DescribeNicJobs(ids []string) ([]string, map[strin
 	return left, working, nil
 }
 
+// If NICs are belong to users, it is necessary to add Owner to VxNet
 func (q *qingcloudAPIWrapper) getVxNets(ids []string, public bool) ([]*rpc.VxNet, error) {
 	input := &service.DescribeVxNetsInput{
 		VxNets: service.StringSlice(ids),

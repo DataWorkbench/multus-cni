@@ -1,20 +1,16 @@
 package allocator
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
+	"encoding/json"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"sync"
 	"time"
 
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
-	"github.com/DataWorkbench/multus-cni/pkg/netutils"
 )
 
 type nicStatus struct {
@@ -22,91 +18,17 @@ type nicStatus struct {
 	info *rpc.PodInfo
 }
 
-func (n *nicStatus) setStatus(status rpc.Status) error {
-	save := n.nic.Status
-	n.nic.Status = status
-	if err := db.SetNetworkInfo(n.nic.ID, &rpc.NICMMessage{
-		Args: n.info,
-		Nic:  n.nic,
-	}); err != nil {
-		n.nic.Status = save
-		return err
-	}
-	return nil
-}
-
-func (n *nicStatus) isFree() bool {
-	return n.nic.Status == rpc.Status_FREE
-}
-
-func (n *nicStatus) isUsing() bool {
-	return n.nic.Status == rpc.Status_USING
-}
-
 type Allocator struct {
-	lock      sync.RWMutex
-	jobs      []string
-	nics      map[string]*nicStatus
-	conf      conf.PoolConf
-	cachedNet *rpc.VxNet
-}
-
-func (a *Allocator) SetCachedVxnet(vxnet string) error {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
-	if a.cachedNet != nil && a.cachedNet.ID == vxnet {
-		return nil
-	}
-
-	var toFree []string
-	for _, nic := range a.nics {
-		if nic.isFree() && nic.nic.VxNet.ID != vxnet {
-			err := nic.setStatus(rpc.Status_DELETING)
-			if err != nil {
-				return err
-			}
-			toFree = append(toFree, nic.nic.ID)
-		}
-	}
-	if len(toFree) > 0 {
-		jobID, err := qcclient.QClient.DeattachNics(toFree, false)
-		if err == nil {
-			a.jobs = append(a.jobs, jobID)
-			logging.Verbosef("deattach nics %v", toFree)
-		} else {
-			return logging.Errorf("failed to deattach nics %v, err: %v", toFree, err)
-		}
-	}
-
-	vxnets, err := qcclient.QClient.GetVxNets([]string{vxnet})
-	if err != nil {
-		return err
-	}
-	a.cachedNet = vxnets[vxnet]
-	logging.Verbosef("set cache vxnet to %s", vxnet)
-	a.cacheHostNic()
-
-	return nil
+	lock          sync.RWMutex
+	jobs          []string
+	nics          map[string]*nicStatus
+	conf          conf.PoolConf
+	validNicCount int32
+	deletingNic   map[string]bool
 }
 
 func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
-	if info != nil {
-		nic.Status = rpc.Status_USING
-	}
-	if nic.RouteTableNum <= 0 {
-		exists := make(map[int]bool)
-		for _, nic := range a.nics {
-			exists[int(nic.nic.RouteTableNum)] = true
-		}
-		for start := a.conf.RouteTableBase; ; start++ {
-			if !exists[start] {
-				nic.RouteTableNum = int32(start)
-				break
-			}
-		}
-		logging.Verbosef("assign nic %s routetable num %d", nic.ID, nic.RouteTableNum)
-	}
+	nic.Status = rpc.Status_USING
 	status := &nicStatus{
 		nic:  nic,
 		info: info,
@@ -120,9 +42,15 @@ func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
 		return err
 	}
 	a.nics[status.nic.ID] = status
+
+	err = db.AddRelatedContainer(nic.ID, info.Containter)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
+// update cache, remove nic infos that are not found in db
 func (a *Allocator) removeNicStatus(status *nicStatus) error {
 	err := db.DeleteNetworkInfo(status.nic.ID)
 	if err != nil {
@@ -130,80 +58,6 @@ func (a *Allocator) removeNicStatus(status *nicStatus) error {
 	}
 	delete(a.nics, status.nic.ID)
 	return nil
-}
-
-func (a *Allocator) cacheHostNic() {
-	if a.cachedNet == nil {
-		return
-	}
-
-	nowAllocated := len(a.nics)
-
-	nowFree := 0
-	var toFree []string
-	for _, nic := range a.nics {
-		if nic.isFree() && nic.nic.VxNet.ID == a.cachedNet.ID {
-			nowFree++
-			if nowFree > a.conf.PoolHigh {
-				if err := nic.setStatus(rpc.Status_DELETING); err != nil {
-					_ = logging.Errorf("failed to set nic %s to deleting", nic.nic.ID)
-				} else {
-					logging.Verbosef("free cached nic %s", nic.nic.ID)
-					toFree = append(toFree, nic.nic.ID)
-				}
-			}
-		}
-	}
-	if len(toFree) > 0 {
-		jobID, err := qcclient.QClient.DeattachNics(toFree, false)
-		if err == nil {
-			a.jobs = append(a.jobs, jobID)
-			logging.Verbosef("deattach nics %v", toFree)
-		} else {
-			_ = logging.Errorf("failed to deattach nics %v", toFree)
-		}
-	}
-
-	if nowFree < a.conf.PoolLow {
-		if a.canAlloc() <= 0 {
-			return
-		}
-
-		canAllocNum := a.conf.PoolLow - nowFree
-		if canAllocNum > a.conf.MaxNic-nowAllocated {
-			canAllocNum = a.conf.MaxNic - nowAllocated
-		}
-
-		nics, jobID, err := qcclient.QClient.CreateNicsAndAttach(a.cachedNet, canAllocNum, nil)
-		if err != nil {
-			_ = logging.Errorf("failed to create %d cached nics", canAllocNum)
-			return
-		}
-		a.jobs = append(a.jobs, jobID)
-
-		for _, nic := range nics {
-			if err := a.addNicStatus(nic, nil); err != nil {
-				_ = logging.Errorf("faid to cache nic %s", nic.ID)
-			} else {
-				logging.Verbosef("cached nic %s", nic.ID)
-			}
-		}
-	}
-}
-
-func (a *Allocator) allocHostNic(args *rpc.PodInfo) *rpc.HostNic {
-	var result *rpc.HostNic
-	for _, nic := range a.nics {
-		if nic.isFree() {
-			err := a.addNicStatus(nic.nic, args)
-			if err == nil {
-				result = nic.nic
-				break
-			}
-		}
-	}
-
-	return result
 }
 
 func (a *Allocator) canAlloc() int {
@@ -229,22 +83,23 @@ func (a *Allocator) getVxnets(vxnet string) (*rpc.VxNet, error) {
 	return result[vxnet], nil
 }
 
-func getKey(info *rpc.PodInfo) string {
-	return info.Containter
-}
-
-func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
-	var result *nicStatus
+func (a *Allocator) getValidNic(vxNet string) *nicStatus {
 	for _, nic := range a.nics {
-		if nic.isUsing() && getKey(nic.info) == getKey(args) {
-			result = nic
+		if a.IsDeleting(nic.nic.ID) {
+			logging.Verbosef("nic [%s] is being deleting status")
+			continue
+		}
+
+		if nic.nic.VxNet.ID == vxNet {
+			return nic
 		}
 	}
-	if result != nil {
-		return result.nic, nil
+	return nil
+}
+
+func (a *Allocator) createAndAttachNewNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
+	if a.canAlloc() <= 0 {
+		return nil, constants.ErrNoAvailableNIC
 	}
 
 	var ips []string
@@ -259,49 +114,47 @@ func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 	if err != nil {
 		return nil, err
 	}
-	logging.Verbosef("create and attach nic %v, jobid %s", nics, jobID)
+	logging.Verbosef("create and attach nic %v, job id %s", nics, jobID)
 	a.jobs = append(a.jobs, jobID)
-	nics[0].Reserved = true
-	err = a.addNicStatus(nics[0], args)
-	if err != nil {
-		return nil, err
-	}
 	return nics[0], nil
 }
 
-func (a *Allocator) FreeHostNic(args *rpc.PodInfo, peek bool) (*rpc.HostNic, error) {
+func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
+	_nicStatus := a.getValidNic(args.VxNet)
+	if _nicStatus != nil {
+		return _nicStatus.nic, nil
+	}
+
+	targetNic, err := a.createAndAttachNewNic(args)
+	if err != nil {
+		_ = logging.Errorf("Allocate Host Nic for Args %v failed, err: %v", args, err)
+		return nil, err
+	}
+
+	err = a.addNicStatus(targetNic, args)
+	if err != nil {
+		_ = logging.Errorf("Add Nic Status to DB failed, Nic [%s], err: %v", targetNic.ID, err)
+		return nil, err
+	}
+	return targetNic, nil
+}
+
+func (a *Allocator) FreeHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
 	var result *nicStatus
-	for _, nic := range a.nics {
-		if nic.isUsing() && getKey(nic.info) == getKey(args) {
-			result = nic
-		}
-	}
+	result = a.getValidNic(args.VxNet)
 	if result == nil {
 		return nil, nil
 	}
 
-	if !peek {
-		status := rpc.Status_FREE
-		if result.nic.Reserved || (a.cachedNet != nil && result.nic.VxNet.ID != a.cachedNet.ID) {
-			status = rpc.Status_DELETING
-		}
-		err := result.setStatus(status)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set nic %s to %d", result.nic.ID, status)
-		}
-		a.cacheHostNic()
-		if status == rpc.Status_DELETING {
-			jobId, err := qcclient.QClient.DeattachNics([]string{result.nic.ID}, false)
-			if err == nil {
-				a.jobs = append(a.jobs, jobId)
-				_ = logging.Errorf("deattach nic %s", result.nic.ID)
-			} else {
-				_ = logging.Errorf("failed to deattach nic %s", result.nic.ID)
-			}
-		}
+	err := db.DeleteRelatedContainer(result.nic.ID, args.Containter)
+	if err != nil {
+		return nil, err
 	}
 
 	args.NicType = result.info.NicType
@@ -309,6 +162,25 @@ func (a *Allocator) FreeHostNic(args *rpc.PodInfo, peek bool) (*rpc.HostNic, err
 	args.Containter = result.info.Containter
 	args.IfName = result.info.IfName
 	return result.nic, nil
+}
+
+func (a *Allocator) GetNicStat(args *rpc.NicStatMessage) int32 {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	return a.validNicCount
+}
+
+func (a *Allocator) MarkToDelete(nicID string) {
+	a.deletingNic[nicID] = true
+}
+
+func (a *Allocator) IsDeleting(nicID string) bool {
+	_, ok := a.deletingNic[nicID]
+	return ok
+}
+
+func (a *Allocator) CleanDeletingMark(nicID string) {
+	delete(a.deletingNic, nicID)
 }
 
 func (a *Allocator) SyncHostNic(node bool) {
@@ -321,24 +193,16 @@ func (a *Allocator) SyncHostNic(node bool) {
 		}
 	}
 
-	var (
-		all      []string
-		using    []string
-		deleting []string
-		toAttach []string
-		toDetach []string
-		toDelete []string
-		working  = make(map[string]bool)
-		left     []string
-	)
+	working := make(map[string]bool)
+	aliveJobs := []string{}
+	toDetach := []string{}
+	toDelete := []string{}
+	toAttach := []string{}
+	all := []string{}
+	currValidNicCount := 0
 
 	for _, nic := range a.nics {
 		all = append(all, nic.nic.ID)
-		if nic.isFree() || nic.isUsing() {
-			using = append(using, nic.nic.ID)
-		} else {
-			deleting = append(deleting, nic.nic.ID)
-		}
 	}
 
 	nics, err := qcclient.QClient.GetNics(all)
@@ -347,17 +211,20 @@ func (a *Allocator) SyncHostNic(node bool) {
 	}
 
 	if len(a.jobs) >= 0 {
-		left, working, err = qcclient.QClient.DescribeNicJobs(a.jobs)
+		aliveJobs, working, err = qcclient.QClient.DescribeNicJobs(a.jobs)
 		if err != nil {
 			return
 		}
-		a.jobs = left
+		a.jobs = aliveJobs
 	}
 
-	for _, id := range using {
+	for _, id := range all {
 		if nics[id] == nil {
-			logging.Verbosef("nic missing in get , remove  using nic %s", id)
-			a.removeNicStatus(a.nics[id])
+			logging.Verbosef("nic missing , remove nic %s", id)
+			err = a.removeNicStatus(a.nics[id])
+			if err != nil {
+				_ = logging.Errorf("remove NIC [%s] failed, err: %v", a.nics[id], err)
+			}
 			continue
 		}
 
@@ -365,37 +232,25 @@ func (a *Allocator) SyncHostNic(node bool) {
 			continue
 		}
 
-		if !nics[id].Using {
+		relatedContainerIDs, err := db.GetContainerRelatedNicInfo(id)
+		if err != nil {
+			_ = logging.Errorf("get related containers for nic [%s] failed", id)
+		}
+
+		if len(relatedContainerIDs) == 0 {
+			a.MarkToDelete(id)
+			if nics[id].Using {
+				toDetach = append(toDetach, id)
+			} else {
+				toDelete = append(toDelete, id)
+			}
+		} else if !nics[id].Using {
+			// Attach Action Job failed, retry
 			toAttach = append(toAttach, id)
-		}
-	}
-
-	for _, id := range deleting {
-		if nics[id] == nil {
-			logging.Verbosef("nic missing in get, remove deleting nic %s", id)
-			a.removeNicStatus(a.nics[id])
-			continue
-		}
-
-		if working[id] {
-			continue
-		}
-
-		if nics[id].Using {
-			toDetach = append(toDetach, id)
 		} else {
-			toDelete = append(toDelete, id)
+			currValidNicCount += 1
 		}
-	}
 
-	if len(toAttach) > 0 {
-		jobID, err := qcclient.QClient.AttachNics(toAttach)
-		if err == nil {
-			logging.Verbosef("try to attachnic %v", toAttach)
-			a.jobs = append(a.jobs, jobID)
-		} else {
-			_ = logging.Errorf("failed to attachnics %v, err: %v", toAttach, err)
-		}
 	}
 
 	if len(toDelete) > 0 {
@@ -403,32 +258,41 @@ func (a *Allocator) SyncHostNic(node bool) {
 		if err == nil {
 			logging.Verbosef("try to delete nic %v", toDelete)
 			for _, id := range toDelete {
-				logging.Verbosef("nic %s deleeted, remove from status", id)
-				a.removeNicStatus(a.nics[id])
+				logging.Verbosef("nic %s deleted, remove from status", id)
+				err = a.removeNicStatus(a.nics[id])
+				if err != nil {
+					_ = logging.Errorf("remove NIC [%s] failed, err: %v", a.nics[id], err)
+				} else {
+					a.CleanDeletingMark(id)
+				}
 			}
 		} else {
-			_ = logging.Errorf("failed to deletenics %v", toDelete)
+			_ = logging.Errorf("failed to delete nics %v", toDelete)
 		}
 	}
 
 	if len(toDetach) > 0 {
 		jobID, err := qcclient.QClient.DeattachNics(toDetach, false)
 		if err == nil {
-			logging.Verbosef("try to deattach nic %v", toDetach)
+			logging.Verbosef("try to detach nic %v", toDetach)
 			a.jobs = append(a.jobs, jobID)
 		} else {
 			_ = logging.Errorf("failed to deattach nics %v", toDetach)
 		}
 	}
+
+	if len(toAttach) > 0 {
+		jobID, err := qcclient.QClient.AttachNics(toAttach)
+		if err == nil {
+			logging.Verbosef("try to attach nic %v", toAttach)
+			a.jobs = append(a.jobs, jobID)
+		} else {
+			_ = logging.Errorf("failed to attach nic %v", toAttach)
+		}
+	}
 }
 
 func (a *Allocator) Start(stopCh <-chan struct{}) error {
-	// choose vxnet for node
-	err := k8s.K8sHelper.ChooseVxnetForNode(a.conf.VxNets, a.conf.MaxNic)
-	if err != nil {
-		logging.Panicf("failed to choose vxnet for node, err: %v", err)
-	}
-
 	go a.run(stopCh)
 	return nil
 }
@@ -439,7 +303,7 @@ func (a *Allocator) run(stopCh <-chan struct{}) {
 	for {
 		select {
 		case <-stopCh:
-			logging.Verbosef("stoped allocator")
+			logging.Verbosef("allocator receive stop signal!")
 			return
 		case <-jobTimer:
 			a.SyncHostNic(false)
@@ -460,62 +324,23 @@ func SetupAllocator(conf conf.PoolConf) {
 		conf: conf,
 	}
 
-	err := db.Iterator(func(info *rpc.NICMMessage) error {
-		if info.Nic.Status == rpc.Status_USING {
-			logging.Verbosef("restore pod %v to nic %s", info.Args, info.Nic.ID)
-		} else {
-			logging.Verbosef("restore nic %s status %d", info.Nic.ID, info.Nic.Status)
+	err := db.Iterator(func(key, value []byte) error {
+		info := rpc.NICMMessage{}
+		_err := json.Unmarshal(value, &info)
+		if _err != nil {
+			return _err
 		}
+
+		logging.Verbosef("restore Nic %s Status %d from DB", info.Nic.ID, info.Nic.Status)
 
 		Alloc.nics[info.Nic.ID] = &nicStatus{
 			nic:  info.Nic,
 			info: info.Args,
 		}
-
 		return nil
 	})
 	if err != nil {
 		logging.Panicf("failed restore allocator from leveldb, err: %v", err)
-	}
-
-	//
-	// restore create nics
-	//
-	nics, err := qcclient.QClient.GetCreatedNics(constants.NicNumLimit, 0)
-	if err != nil {
-		logging.Panicf("failed to get created nics, err: %v", err)
-	}
-	var left []*rpc.HostNic
-	for _, nic := range nics {
-		if Alloc.nics[nic.ID] == nil {
-			link, err := netutils.LinkByMacAddr(nic.HardwareAddr)
-			if err != nil && err != constants.ErrNicNotFound {
-				logging.Panicf("failed to index link by mac %s, err: %v", nic.HardwareAddr, err)
-			}
-			if link != nil {
-				routeTableNum := 0
-				name := ""
-				if strings.HasPrefix(link.Attrs().Name, constants.NicPrefix) {
-					name = link.Attrs().Name
-				} else {
-					name = link.Attrs().Alias
-				}
-				routeTableNum, err = strconv.Atoi(strings.TrimPrefix(name, constants.NicPrefix))
-				if err != nil {
-					left = append(left, nic)
-					continue
-				}
-				nic.RouteTableNum = int32(routeTableNum)
-				logging.Verbosef("restore create nic %s routetable num %d", nic.ID, nic.RouteTableNum)
-				Alloc.addNicStatus(nic, nil)
-			} else {
-				left = append(left, nic)
-			}
-		}
-	}
-	for _, nic := range left {
-		Alloc.addNicStatus(nic, nil)
-		logging.Verbosef("restore create nic %s routetable num %d", nic.ID, nic.RouteTableNum)
 	}
 
 	Alloc.SyncHostNic(true)

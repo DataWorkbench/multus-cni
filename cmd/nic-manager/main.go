@@ -8,7 +8,6 @@ import (
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s/controllers"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/server"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/signals"
@@ -84,7 +83,7 @@ func main() {
 		logging.Panicf("config is NIL")
 	}
 
-	logging.Verbosef("hostnic config is %v", config)
+	logging.Verbosef("host nic config is %v", config)
 
 	// setup qcclient, k8s
 	qcclient.SetupQingCloudClient(qcclient.Options{
@@ -96,13 +95,6 @@ func main() {
 	// add daemon
 	k8s.K8sHelper.Mgr.Add(allocator.Alloc)
 	k8s.K8sHelper.Mgr.Add(server.NewNICMServer(config.Server))
-
-	//add controllers
-	nodeReconciler := &controllers.NodeReconciler{}
-	err = nodeReconciler.SetupWithManager(k8s.K8sHelper.Mgr)
-	if err != nil {
-		logging.Panicf("failed to setup node reconciler, %v", err)
-	}
 
 	logging.Verbosef("all setup done, startup daemon")
 	if err := k8s.K8sHelper.Mgr.Start(stopCh); err != nil {

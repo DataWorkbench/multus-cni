@@ -8,6 +8,8 @@ service CNIBackend {
   }
   rpc DelNetwork (NICMMessage) returns (NICMMessage) {
   }
+  rpc GetNicStat (NicStatMessage) returns (NicStatMessage){
+  }
 }
 
 message VxNet {
@@ -54,4 +56,9 @@ message NICMMessage {
   HostNic Nic = 2;
   bool Peek = 3;
   bool Delete = 4;
+}
+
+message NicStatMessage {
+  int32 Count = 1;
+  string NodeName = 2;
 }

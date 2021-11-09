@@ -91,10 +91,17 @@ func (s *NICMServer) DelNetwork(context context.Context, in *rpc.NICMMessage) (*
 
 	logging.Verbosef("handle server delete request (%v)", in.Args)
 	defer func() {
-		_ = logging.Errorf("handle server delete reply (%v), err: %v", in.Nic, err)
+		logging.Verbosef("handle server delete reply (%v), err: %v", in.Nic, err)
 	}()
 
-	in.Nic, err = allocator.Alloc.FreeHostNic(in.Args, in.Peek)
+	in.Nic, err = allocator.Alloc.FreeHostNic(in.Args)
 
 	return in, nil
+}
+
+func (s *NICMServer) GetNicStat(context context.Context, args *rpc.NicStatMessage) (*rpc.NicStatMessage, error) {
+	logging.Verbosef("handle GetNicStat request (%v)", args)
+
+	nicCount := allocator.Alloc.GetNicStat(args)
+	return &rpc.NicStatMessage{Count: nicCount, NodeName: k8s.K8sHelper.NodeName}, nil
 }
