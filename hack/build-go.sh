@@ -60,4 +60,7 @@ else
 	go build -o "${DEST_DIR}"/multus-daemon -ldflags "${LDFLAGS}" ./cmd/controller/
 	echo "Building multus nic-manager"
 	go build -o "${DEST_DIR}"/multus-nic-manager -ldflags "${LDFLAGS}" ./cmd/nic-manager/
+	echo "Building multus nic-device-plugin"
+	go build -o "${DEST_DIR}"/multus-nic-device-plugin -ldflags "${LDFLAGS}" ./cmd/device-plugin/
+
 fi

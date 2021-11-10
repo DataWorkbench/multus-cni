@@ -11,6 +11,7 @@ require (
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.3
 	github.com/pkg/errors v0.9.1
+	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/viper v1.7.1
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
@@ -18,6 +19,7 @@ require (
 	golang.org/x/net v0.0.0-20210224082022-3d97a244fca7
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.25.0
+	gopkg.in/fsnotify.v1 v1.4.7
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.20.10
 	k8s.io/apimachinery v0.20.10

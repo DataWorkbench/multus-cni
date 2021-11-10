@@ -617,7 +617,6 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 	var result, tmpResult cnitypes.Result
 	var netStatus []nettypes.NetworkStatus
 	cniArgs := os.Getenv("CNI_ARGS")
-	isConfigureRoute := false
 	for idx, delegate := range n.Delegates {
 		ifName := getIfname(delegate, args.IfName, idx)
 		isMacvlanType := delegate.Conf.Type == "macvlan"
@@ -651,6 +650,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 		// Remove gateway from routing table if the gateway is not used
 		deletegateway := false
 		adddefaultgateway := false
+		addK8sRouteRule := false
 		if delegate.IsFilterGateway {
 			deletegateway = true
 			logging.Debugf("Marked interface %v for gateway deletion", ifName)
@@ -663,6 +663,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 			if delegate.GatewayRequest != nil && delegate.GatewayRequest[0] != nil {
 				deletegateway = true
 				adddefaultgateway = true
+				addK8sRouteRule = true
 				logging.Debugf("Detected gateway override on interface %v to %v", ifName, delegate.GatewayRequest)
 			}
 		}
@@ -683,8 +684,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 		}
 
 		// Here we'll configure calico&&service route
-		if isMacvlanType && !isConfigureRoute {
-			isConfigureRoute = true
+		if addK8sRouteRule {
 			err = ConfigureK8sRoute(args, "eth0")
 			if err != nil {
 				return nil, cmdErr(k8sArgs, "error configure k8s route: %v", err)
