@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
@@ -12,6 +14,7 @@ import (
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/server"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/signals"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	"github.com/DataWorkbench/multus-cni/pkg/multus"
 )
 
 const (
@@ -47,9 +50,19 @@ const (
 
 func main() {
 
+	versionOpt := false
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+
 	logToStdErr := flag.Bool(multusLogToStdErr, defaultMultusLogToStdErr, "If the multus logs are also to be echoed to stderr.")
 	logLevel := flag.String(multusLogLevel, defaultMultusLogLevel, "One of: debug/verbose/error/panic. Used only with --multus-conf-file=auto.")
 	logFile := flag.String(multusLogFile, defaultMultusLogFile, "Path where to multus will log. Used only with --multus-conf-file=auto.")
+	flag.BoolVar(&versionOpt, "version", false, "Show application version")
+	flag.BoolVar(&versionOpt, "v", false, "Show application version")
+	flag.Parse()
+	if versionOpt == true {
+		fmt.Printf("%s\n", multus.PrintVersionString())
+		return
+	}
 	if *logToStdErr {
 		logging.SetLogStderr(*logToStdErr)
 	}
