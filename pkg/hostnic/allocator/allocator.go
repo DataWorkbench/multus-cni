@@ -142,12 +142,12 @@ func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 	return targetNic, nil
 }
 
-func (a *Allocator) FreeHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
+func (a *Allocator) FreeHostNic(args *rpc.PodInfo, vxNetID string) (*rpc.HostNic, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
 	var result *nicStatus
-	result = a.getValidNic(args.VxNet)
+	result = a.getValidNic(vxNetID)
 	if result == nil {
 		return nil, nil
 	}

@@ -86,7 +86,8 @@ func (s *NICMServer) AddNetwork(context context.Context, in *rpc.NICMMessage) (*
 // DelNetwork handle del pod request
 func (s *NICMServer) DelNetwork(context context.Context, in *rpc.NICMMessage) (*rpc.NICMMessage, error) {
 	var (
-		err error
+		err     error
+		podInfo *rpc.PodInfo
 	)
 
 	logging.Verbosef("handle server delete request (%v)", in.Args)
@@ -94,7 +95,13 @@ func (s *NICMServer) DelNetwork(context context.Context, in *rpc.NICMMessage) (*
 		logging.Verbosef("handle server delete reply (%v), err: %v", in.Nic, err)
 	}()
 
-	in.Nic, err = allocator.Alloc.FreeHostNic(in.Args)
+	podInfo, err = k8s.K8sHelper.GetPodInfo(in.Args.Namespace, in.Args.Name)
+	if err != nil {
+		err = fmt.Errorf("cannot get podinfo %s/%s: %v", in.Args.Namespace, in.Args.Name, err)
+		return nil, err
+	}
+
+	in.Nic, err = allocator.Alloc.FreeHostNic(in.Args, podInfo.VxNet)
 
 	return in, nil
 }

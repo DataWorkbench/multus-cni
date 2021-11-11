@@ -65,7 +65,7 @@ func printf(level Level, format string, a ...interface{}) {
 		return
 	}
 
-	if loggingStderr && loggingLevel >= ErrorLevel {
+	if loggingStderr && level >= ErrorLevel {
 		_, _ = fmt.Fprintf(os.Stderr, header, t.Format(defaultTimestampFormat), level)
 		_, _ = fmt.Fprintf(os.Stderr, format, a...)
 		_, _ = fmt.Fprintf(os.Stderr, "\n")
