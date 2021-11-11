@@ -279,6 +279,7 @@ func (s *MultusNicServer) watchDevice() error {
 					s.notify <- true
 					log.Infoln("device deleted:", event.Name)
 				}
+				log.Infoln("devices updated: ", s.devices)
 
 			case err, ok := <-w.Errors:
 				if !ok {
