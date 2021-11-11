@@ -63,109 +63,115 @@ func DeleteNetworkInfo(nicID string) error {
 		return constants.ErrNicNotFound
 	}
 
-	crnKey := getContainerRefNicKey(nicID)
-	return LevelDB.Delete(crnKey, nil)
+	return LevelDB.Delete(getPodRefNicKey(nicID), nil)
 }
 
-func getContainerRefNicKey(nicID string) []byte {
-	return []byte(constants.ContainerRefPrefix + nicID)
+func getPodRefNicKey(nicID string) []byte {
+	return []byte(constants.PodRefPrefix + nicID)
 }
 
-func GetContainerRelatedNicInfo(nicID string) ([]string, error) {
-	crnKey := getContainerRefNicKey(nicID)
+func GetPodsByRefNicID(nicID string) ([]string, error) {
+	key := getPodRefNicKey(nicID)
 
-	value, err := LevelDB.Get(crnKey, nil)
+	value, err := LevelDB.Get(key, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	containerIDs := []string{}
-	err = json.Unmarshal(value, &containerIDs)
+	podUniNames := []string{}
+	err = json.Unmarshal(value, &podUniNames)
 	if err != nil {
 		return nil, err
 	}
 
-	return containerIDs, nil
+	return podUniNames, nil
 }
 
-func AddRelatedContainer(nicID, containerID string) error {
-	key := getContainerRefNicKey(nicID)
+func AddRefPodInfo(nicID, podName, namespace string) error {
+	key := getPodRefNicKey(nicID)
+	podUniName := GetPodUniName(podName, namespace)
 	hasKey, err := LevelDB.Has(key, nil)
 	if err != nil {
 		return err
 	}
 
 	if !hasKey {
-		value, err := json.Marshal([]string{containerID})
+		value, err := json.Marshal([]string{podUniName})
 		if err != nil {
 			return err
 		}
 		return LevelDB.Put(key, value, nil)
 	}
 
-	containerIDJson, err := LevelDB.Get(key, nil)
+	podInfoJson, err := LevelDB.Get(key, nil)
 	if err != nil {
 		return err
 	}
 
-	oldContainerIDs := []string{}
-	err = json.Unmarshal(containerIDJson, &oldContainerIDs)
+	oldPodUniNames := []string{}
+	err = json.Unmarshal(podInfoJson, &oldPodUniNames)
 	if err != nil {
 		return err
 	}
 
-	for _, _containerID := range oldContainerIDs {
-		if _containerID == containerID {
+	for _, _pod := range oldPodUniNames {
+		if _pod == podUniName {
 			return nil
 		}
 	}
 
-	oldContainerIDs = append(oldContainerIDs, containerID)
-	value, err := json.Marshal(oldContainerIDs)
+	oldPodUniNames = append(oldPodUniNames, podUniName)
+	value, err := json.Marshal(oldPodUniNames)
 	if err != nil {
 		return err
 	}
 	return LevelDB.Put(key, value, nil)
 }
 
-// set nic related container array empty here
+func GetPodUniName(podName, namespace string) string {
+	return namespace + "|" + podName
+}
+
+// set nic reference pod array empty here
 // wait for Sync thread to release Nic resource
-func DeleteRelatedContainer(nicID, containerID string) (err error) {
-	key := getContainerRefNicKey(nicID)
+func DeleteRefPodInfo(nicID, podName, namespace string) (err error) {
+	key := getPodRefNicKey(nicID)
+
 	hasKey, err := LevelDB.Has(key, nil)
 	if err != nil {
 		return
 	}
 
 	if !hasKey {
-		err = logging.Errorf("No valid Nic found for container %s", containerID)
+		err = logging.Errorf("No Reference pod found for RefNicKey %s", key)
 		return
 	}
 
-	containerIDJson, err := LevelDB.Get(key, nil)
+	podUniName := GetPodUniName(podName, namespace)
+	podUniNameJson, err := LevelDB.Get(key, nil)
 	if err != nil {
 		return
 	}
 
-	oldContainerIDs := []string{}
-	err = json.Unmarshal(containerIDJson, &oldContainerIDs)
+	oldPodUniNames := []string{}
+	err = json.Unmarshal(podUniNameJson, &oldPodUniNames)
 	if err != nil {
 		return
 	}
 
-	newContainerIDs := []string{}
-	for _, _containerID := range oldContainerIDs {
-		if _containerID != containerID {
-			newContainerIDs = append(newContainerIDs, _containerID)
+	newPodUniNames := []string{}
+	for _, _pod := range oldPodUniNames {
+		if _pod != podUniName {
+			newPodUniNames = append(newPodUniNames, _pod)
 		}
 	}
 
-	if len(oldContainerIDs) == len(newContainerIDs) {
-		err = logging.Errorf("No valid Nic found for container %s in DB", containerID)
+	if len(oldPodUniNames) == len(newPodUniNames) {
+		logging.Verbosef("No valid Nic found for pod %s in DB", podUniName)
 		return
 	}
 
-	value, err := json.Marshal(newContainerIDs)
+	value, err := json.Marshal(newPodUniNames)
 	if err != nil {
 		return
 	}

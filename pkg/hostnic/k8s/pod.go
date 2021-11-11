@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
-	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
 	"reflect"
@@ -60,7 +59,6 @@ func getPodInfo(pod *corev1.Pod) *rpc.PodInfo {
 		tmp.NicType = annotations[AnnoHostNicType]
 	}
 
-	logging.Verbosef("Get PodInfo [%v] from pod [%v]", tmp, pod)
 	return tmp
 }
 

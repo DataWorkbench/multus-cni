@@ -43,7 +43,7 @@ func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
 	}
 	a.nics[status.nic.ID] = status
 
-	err = db.AddRelatedContainer(nic.ID, info.Containter)
+	err = db.AddRefPodInfo(nic.ID, info.Name, info.Namespace)
 	if err != nil {
 		return err
 	}
@@ -125,6 +125,7 @@ func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 
 	_nicStatus := a.getValidNic(args.VxNet)
 	if _nicStatus != nil {
+		logging.Verbosef("Nic [%s] is found using in vxNet [%s]", _nicStatus.nic.ID, args.VxNet)
 		return _nicStatus.nic, nil
 	}
 
@@ -152,8 +153,9 @@ func (a *Allocator) FreeHostNic(args *rpc.PodInfo, vxNetID string) (*rpc.HostNic
 		return nil, nil
 	}
 
-	err := db.DeleteRelatedContainer(result.nic.ID, args.Containter)
+	err := db.DeleteRefPodInfo(result.nic.ID, args.Name, args.Namespace)
 	if err != nil {
+		_ = logging.Errorf("delete Ref Pod info from DB failed, err: %v", err)
 		return nil, err
 	}
 
@@ -232,12 +234,12 @@ func (a *Allocator) SyncHostNic(node bool) {
 			continue
 		}
 
-		relatedContainerIDs, err := db.GetContainerRelatedNicInfo(id)
+		podUniNames, err := db.GetPodsByRefNicID(id)
 		if err != nil {
 			_ = logging.Errorf("get related containers for nic [%s] failed", id)
 		}
 
-		if len(relatedContainerIDs) == 0 {
+		if len(podUniNames) == 0 {
 			a.MarkToDelete(id)
 			if nics[id].Using {
 				toDetach = append(toDetach, id)
@@ -320,8 +322,9 @@ var (
 
 func SetupAllocator(conf conf.PoolConf) {
 	Alloc = &Allocator{
-		nics: make(map[string]*nicStatus),
-		conf: conf,
+		nics:        make(map[string]*nicStatus),
+		conf:        conf,
+		deletingNic: make(map[string]bool),
 	}
 
 	logging.Verbosef("begin to load data from LevelDB")
