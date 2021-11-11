@@ -75,7 +75,7 @@ func (s *NICMServer) AddNetwork(context context.Context, in *rpc.NICMMessage) (*
 
 	logging.Verbosef("handle server add request (%v)", in.Args)
 	defer func() {
-		_ = logging.Errorf("handle server add reply (%v)", in.Nic)
+		logging.Verbosef("handle server add reply (%v)", in.Nic)
 	}()
 
 	in.Nic, err = allocator.Alloc.AllocHostNic(in.Args)

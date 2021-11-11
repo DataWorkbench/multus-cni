@@ -63,16 +63,16 @@ func DeleteNetworkInfo(nicID string) error {
 		return constants.ErrNicNotFound
 	}
 
-	crnKey := getContainerRelatedNicKey(nicID)
+	crnKey := getContainerRefNicKey(nicID)
 	return LevelDB.Delete(crnKey, nil)
 }
 
-func getContainerRelatedNicKey(nicID string) []byte {
-	return []byte(constants.ContainerRelatedPrefix + nicID)
+func getContainerRefNicKey(nicID string) []byte {
+	return []byte(constants.ContainerRefPrefix + nicID)
 }
 
 func GetContainerRelatedNicInfo(nicID string) ([]string, error) {
-	crnKey := getContainerRelatedNicKey(nicID)
+	crnKey := getContainerRefNicKey(nicID)
 
 	value, err := LevelDB.Get(crnKey, nil)
 	if err != nil {
@@ -89,7 +89,7 @@ func GetContainerRelatedNicInfo(nicID string) ([]string, error) {
 }
 
 func AddRelatedContainer(nicID, containerID string) error {
-	key := getContainerRelatedNicKey(nicID)
+	key := getContainerRefNicKey(nicID)
 	hasKey, err := LevelDB.Has(key, nil)
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func AddRelatedContainer(nicID, containerID string) error {
 // set nic related container array empty here
 // wait for Sync thread to release Nic resource
 func DeleteRelatedContainer(nicID, containerID string) (err error) {
-	key := getContainerRelatedNicKey(nicID)
+	key := getContainerRefNicKey(nicID)
 	hasKey, err := LevelDB.Has(key, nil)
 	if err != nil {
 		return

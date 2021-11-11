@@ -65,16 +65,16 @@ func printf(level Level, format string, a ...interface{}) {
 		return
 	}
 
-	if loggingStderr {
-		fmt.Fprintf(os.Stderr, header, t.Format(defaultTimestampFormat), level)
-		fmt.Fprintf(os.Stderr, format, a...)
-		fmt.Fprintf(os.Stderr, "\n")
+	if loggingStderr && loggingLevel >= ErrorLevel {
+		_, _ = fmt.Fprintf(os.Stderr, header, t.Format(defaultTimestampFormat), level)
+		_, _ = fmt.Fprintf(os.Stderr, format, a...)
+		_, _ = fmt.Fprintf(os.Stderr, "\n")
 	}
 
 	if loggingW != nil {
-		fmt.Fprintf(loggingW, header, t.Format(defaultTimestampFormat), level)
-		fmt.Fprintf(loggingW, format, a...)
-		fmt.Fprintf(loggingW, "\n")
+		_, _ = fmt.Fprintf(loggingW, header, t.Format(defaultTimestampFormat), level)
+		_, _ = fmt.Fprintf(loggingW, format, a...)
+		_, _ = fmt.Fprintf(loggingW, "\n")
 	}
 }
 

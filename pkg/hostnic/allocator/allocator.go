@@ -324,6 +324,8 @@ func SetupAllocator(conf conf.PoolConf) {
 		conf: conf,
 	}
 
+	logging.Verbosef("begin to load data from LevelDB")
+
 	err := db.Iterator(func(key, value []byte) error {
 		info := rpc.NICMMessage{}
 		_err := json.Unmarshal(value, &info)
