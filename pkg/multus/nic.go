@@ -22,7 +22,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	// Set up a connection to the NICM server.
 	conn, err := grpc.Dial(constants.DefaultUnixSocketPath, grpc.WithInsecure())
 	if err != nil {
-		return fmt.Errorf("failed to connect server, err=%v", err)
+		return logging.Errorf("failed to connect server, err=%v", err)
 	}
 	defer conn.Close()
 
@@ -52,14 +52,17 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 		}
 		time.Sleep(1 * time.Second)
 	}
+	if link == nil{
+		return constants.ErrNicNotFound
+	}
 	if link.Attrs().Name != delegate.Conf.Master {
 		err = netlink.LinkSetName(link, delegate.Conf.Master)
 		if err != nil {
-			return fmt.Errorf("failed to set link %s name to %s: %v", link.Attrs().Name, delegate.Conf.Master, err)
+			return logging.Errorf("failed to set link %s name to %s: %v", link.Attrs().Name, delegate.Conf.Master, err)
 		}
 		err = netlink.LinkSetUp(link)
 		if err != nil {
-			return fmt.Errorf("failed to set link %s up: %v", link.Attrs().Name, err)
+			return logging.Errorf("failed to set link %s up: %v", link.Attrs().Name, err)
 		}
 	}
 	return nil
