@@ -147,8 +147,10 @@ spec:
           securityContext:
             privileged: true
           volumeMounts:
-            - mountPath: /etc/multus-nic/
+            - mountPath: /etc/multus-nic/devices/
               name: device-plugin-dir
+            - mountPath: /var/lib/kubelet/device-plugins/
+              name: kubelet-device-plugin-dir
       hostNetwork: true
       priorityClassName: system-node-critical
       serviceAccountName: hostnic-node
@@ -156,8 +158,11 @@ spec:
         - operator: Exists
       volumes:
         - hostPath:
-            path:  /etc/multus-nic/
+            path:  /etc/multus-nic/devices/
           name: device-plugin-dir
+        - hostPath:
+            path:  /var/lib/kubelet/device-plugins/
+          name: kubelet-device-plugin-dir
         - hostPath:
             path: /opt/cni/bin
           name: cni-bin-dir
