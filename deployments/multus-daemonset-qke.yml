@@ -147,7 +147,7 @@ spec:
           securityContext:
             privileged: true
           volumeMounts:
-            - mountPath: /etc/multus-nic/devices/
+            - mountPath: /etc/multus-nic/
               name: device-plugin-dir
             - mountPath: /var/lib/kubelet/device-plugins/
               name: kubelet-device-plugin-dir
@@ -158,7 +158,7 @@ spec:
         - operator: Exists
       volumes:
         - hostPath:
-            path:  /etc/multus-nic/devices/
+            path:  /etc/multus-nic/
           name: device-plugin-dir
         - hostPath:
             path:  /var/lib/kubelet/device-plugins/

@@ -21,7 +21,7 @@ import (
 
 const (
 	resourceName                    string = "multus.network.dataworkbench.io/multus-nic-device"
-	defaultMultusNicDevicesLocation string = "/etc/multus-nic"
+	defaultMultusNicDevicesLocation string = "/etc/multus-nic/devices"
 	multusNicSocket                 string = "multus-nic.sock"
 	// KubeletSocket kubelet 监听 unix 的名称
 	KubeletSocket string = "kubelet.sock"
