@@ -154,6 +154,6 @@ func SetLogFile(filename string) {
 
 func init() {
 	loggingStderr = true
-	loggingW = nil
+	loggingW = os.Stdout
 	loggingLevel = PanicLevel
 }
