@@ -3,6 +3,7 @@ package allocator
 import (
 	"encoding/json"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	"sync"
 	"time"
 
@@ -185,6 +186,22 @@ func (a *Allocator) CleanDeletingMark(nicID string) {
 	delete(a.deletingNic, nicID)
 }
 
+func (a *Allocator) GetCurrentNodePods() map[string]bool {
+	infoMap := make(map[string]bool)
+	currentNodePodInfo, err := k8s.K8sHelper.GetCurrentNodePods()
+	if err != nil {
+		_ = logging.Errorf("get current node pods failed, err: %v", err)
+		return infoMap
+	}
+
+	for _, podInfo := range currentNodePodInfo {
+		podUniName := db.GetPodUniName(podInfo.Name, podInfo.Namespace)
+		infoMap[podUniName] = true
+	}
+
+	return infoMap
+}
+
 func (a *Allocator) SyncHostNic(node bool) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -202,6 +219,7 @@ func (a *Allocator) SyncHostNic(node bool) {
 	toAttach := []string{}
 	all := []string{}
 	currValidNicCount := 0
+	currentNodePodNameMap := a.GetCurrentNodePods()
 
 	for _, nic := range a.nics {
 		all = append(all, nic.nic.ID)
@@ -234,9 +252,9 @@ func (a *Allocator) SyncHostNic(node bool) {
 			continue
 		}
 
-		podUniNames, err := db.GetPodsByRefNicID(id)
+		podUniNames, err := db.GetActivePodsByRefNicID(id, currentNodePodNameMap)
 		if err != nil {
-			_ = logging.Errorf("get related containers for nic [%s] failed", id)
+			_ = logging.Errorf("get related containers for nic [%s] failed, err: %v", id, err)
 		}
 
 		if len(podUniNames) == 0 {

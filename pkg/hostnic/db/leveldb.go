@@ -70,7 +70,7 @@ func getPodRefNicKey(nicID string) []byte {
 	return []byte(constants.PodRefPrefix + nicID)
 }
 
-func GetPodsByRefNicID(nicID string) ([]string, error) {
+func GetActivePodsByRefNicID(nicID string, podOnNodeMap map[string]bool) ([]string, error) {
 	key := getPodRefNicKey(nicID)
 
 	value, err := LevelDB.Get(key, nil)
@@ -84,7 +84,25 @@ func GetPodsByRefNicID(nicID string) ([]string, error) {
 		return nil, err
 	}
 
-	return podUniNames, nil
+	activePodUniNames := []string{}
+	for _, _podUniName := range podUniNames {
+		_, ok := podOnNodeMap[_podUniName]
+		if ok {
+			activePodUniNames = append(activePodUniNames, _podUniName)
+		}
+	}
+
+	newPodUniNameJson, err := json.Marshal(activePodUniNames)
+	if err != nil {
+		return nil, err
+	}
+
+	err = LevelDB.Put(key, newPodUniNameJson, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return activePodUniNames, nil
 }
 
 func AddRefPodInfo(nicID, podName, namespace string) error {

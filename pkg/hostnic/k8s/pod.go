@@ -2,15 +2,13 @@ package k8s
 
 import (
 	"context"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
+// TODO need to rewrite
 // GetCurrentNodePods return the list of pods running on the local nodes
 func (k *Helper) GetCurrentNodePods() ([]*rpc.PodInfo, error) {
 	var localPods []*rpc.PodInfo
@@ -28,19 +26,8 @@ func (k *Helper) GetCurrentNodePods() ([]*rpc.PodInfo, error) {
 			continue
 		}
 
-		if pod.Spec.HostNetwork {
-			continue
-		}
-
-		if pod.Annotations == nil {
-			continue
-		}
-
-		if pod.Annotations[AnnoHostNicVxnet] == "" {
-			continue
-		}
-
-		localPods = append(localPods, getPodInfo(&pod))
+		_pod := pod
+		localPods = append(localPods, getPodInfo(&_pod))
 	}
 
 	return localPods, nil
@@ -60,33 +47,6 @@ func getPodInfo(pod *corev1.Pod) *rpc.PodInfo {
 	}
 
 	return tmp
-}
-
-func (k *Helper) UpdatePodInfo(info *rpc.PodInfo) error {
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		pod := &corev1.Pod{}
-		err := k.Client.Get(context.Background(), client.ObjectKey{
-			Namespace: info.Namespace,
-			Name:      info.Name,
-		}, pod)
-		if err != nil {
-			return err
-		}
-
-		clone := pod.DeepCopy()
-		if clone.Annotations == nil {
-			clone.Annotations = make(map[string]string)
-		}
-		clone.Annotations[AnnoHostNicIP] = info.PodIP
-		clone.Annotations[AnnoHostNic] = info.HostNic
-		clone.Annotations[AnnoHostNicVxnet] = info.VxNet
-
-		if reflect.DeepEqual(clone, pod) {
-			return nil
-		}
-
-		return k.Client.Update(context.Background(), clone)
-	})
 }
 
 func (k *Helper) needSetVxnetForNode(vxnets []string) (error, bool) {
@@ -161,41 +121,6 @@ func (k *Helper) updateNodeVxnet(vxnet string) error {
 		node.Annotations[AnnoHostNicVxnet] = vxnet
 		return k.Client.Update(context.Background(), node)
 	})
-}
-
-func (k *Helper) ChooseVxnetForNode(vxnets []string, num int) error {
-	for {
-		err, need := k.needSetVxnetForNode(vxnets)
-		if err != nil {
-			return err
-		}
-		if !need {
-			return nil
-		}
-
-		maxNode := constants.VxnetNicNumLimit / num
-		choose := ""
-		err, usage, wait := k.getNodeVxnetUsage(vxnets)
-		if err != nil {
-			return err
-		}
-		if wait {
-			time.Sleep(100 * time.Millisecond)
-			continue
-		} else {
-			for _, vxnet := range vxnets {
-				if usage[vxnet] < maxNode {
-					choose = vxnet
-					break
-				}
-			}
-			if choose == "" {
-				return nil
-			} else {
-				return k.updateNodeVxnet(choose)
-			}
-		}
-	}
 }
 
 func (k *Helper) GetPodInfo(namespace, name string) (*rpc.PodInfo, error) {

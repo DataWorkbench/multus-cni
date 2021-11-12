@@ -13,7 +13,7 @@ const (
 	DefaultConfigPath     = "/etc/hostnic"
 	DefaultConfigName     = "hostnic"
 
-	DefaultJobSyn   = 3
+	DefaultJobSyn   = 10
 	DefaultNodeSync = 1 * 60
 
 	DefaultLowPoolSize  = 3
