@@ -108,6 +108,8 @@ spec:
           securityContext:
             privileged: true
           volumeMounts:
+            - mountPath: /etc/multus-nic/
+              name: device-plugin-dir
             - mountPath: /opt/cni/bin
               name: cni-bin-dir
             - mountPath: /etc/cni/net.d

@@ -12,6 +12,7 @@ const (
 	DefaultUnixSocketPath = "unix://" + DefaultSocketPath
 	DefaultConfigPath     = "/etc/hostnic"
 	DefaultConfigName     = "hostnic"
+	DefaultMultusNicDevicesLocation = "/etc/multus-nic"
 
 	DefaultJobSyn   = 10
 	DefaultNodeSync = 1 * 60

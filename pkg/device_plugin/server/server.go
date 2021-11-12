@@ -2,13 +2,13 @@ package server
 
 import (
 	"context"
-	"crypto/md5"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -21,18 +21,20 @@ import (
 
 const (
 	resourceName                    string = "multus.network.dataworkbench.io/multus-nic-device"
-	defaultMultusNicDevicesLocation string = "/etc/multus-nic/devices"
+	defaultMultusNicDevicesLocation string = "/etc/multus-nic"
 	multusNicSocket                 string = "multus-nic.sock"
 	// KubeletSocket kubelet 监听 unix 的名称
 	KubeletSocket string = "kubelet.sock"
 	// DevicePluginPath 默认位置
-	DevicePluginPath string = "/var/lib/kubelet/device-plugins/"
+	DevicePluginPath  string = "/var/lib/kubelet/device-plugins/"
+	TotalDevicesCount int    = 40
 )
 
 // MultusNicServer 是一个 device plugin server
 type MultusNicServer struct {
 	srv         *grpc.Server
-	devices     map[string]*pluginapi.Device
+	devices     []*pluginapi.Device
+	nextDevice  int
 	notify      chan bool
 	ctx         context.Context
 	cancel      context.CancelFunc
@@ -43,7 +45,8 @@ type MultusNicServer struct {
 func NewMultusNicServer() *MultusNicServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MultusNicServer{
-		devices:     make(map[string]*pluginapi.Device),
+		devices:     make([]*pluginapi.Device, TotalDevicesCount),
+		nextDevice:  0,
 		srv:         grpc.NewServer(grpc.EmptyServerOption{}),
 		notify:      make(chan bool),
 		ctx:         ctx,
@@ -156,15 +159,7 @@ func (s *MultusNicServer) GetPreferredAllocation(ctx context.Context, req *plugi
 // returns the new list
 func (s *MultusNicServer) ListAndWatch(e *pluginapi.Empty, srv pluginapi.DevicePlugin_ListAndWatchServer) error {
 	log.Infoln("ListAndWatch called")
-	devs := make([]*pluginapi.Device, len(s.devices))
-
-	i := 0
-	for _, dev := range s.devices {
-		devs[i] = dev
-		i++
-	}
-
-	err := srv.Send(&pluginapi.ListAndWatchResponse{Devices: devs})
+	err := srv.Send(&pluginapi.ListAndWatchResponse{Devices: s.devices})
 	if err != nil {
 		log.Errorf("ListAndWatch send device error: %v", err)
 		return err
@@ -175,17 +170,8 @@ func (s *MultusNicServer) ListAndWatch(e *pluginapi.Empty, srv pluginapi.DeviceP
 		log.Infoln("waiting for device change")
 		select {
 		case <-s.notify:
-			log.Infoln("开始更新device list, 设备数:", len(s.devices))
-			devs := make([]*pluginapi.Device, len(s.devices))
-
-			i := 0
-			for _, dev := range s.devices {
-				devs[i] = dev
-				i++
-			}
-
-			srv.Send(&pluginapi.ListAndWatchResponse{Devices: devs})
-
+			log.Infoln("device updated")
+			srv.Send(&pluginapi.ListAndWatchResponse{Devices: s.devices})
 		case <-s.ctx.Done():
 			log.Info("ListAndWatch exit")
 			return nil
@@ -219,26 +205,25 @@ func (s *MultusNicServer) PreStartContainer(ctx context.Context, req *pluginapi.
 	return &pluginapi.PreStartContainerResponse{}, nil
 }
 
-// listDevice 从节点上发现设备
+// listDevice
 func (s *MultusNicServer) listDevice() error {
 	dir, err := ioutil.ReadDir(defaultMultusNicDevicesLocation)
 	if err != nil {
 		return err
 	}
-
-	for _, f := range dir {
-		if f.IsDir() {
-			continue
-		}
-
-		sum := md5.Sum([]byte(f.Name()))
-		s.devices[f.Name()] = &pluginapi.Device{
-			ID:     string(sum[:]),
+	s.nextDevice = len(dir)
+	log.Infof("Current available devices count: %d, used: %d, total: %d", TotalDevicesCount-s.nextDevice, s.nextDevice, TotalDevicesCount)
+	for i := 0; i < TotalDevicesCount; i++ {
+		deviceName := strconv.Itoa(i)
+		device := &pluginapi.Device{
+			ID:     deviceName,
 			Health: pluginapi.Healthy,
 		}
-		log.Infof("find device '%s'", f.Name())
+		if i < s.nextDevice {
+			device.Health = pluginapi.Unhealthy
+		}
+		s.devices[i] = device
 	}
-
 	return nil
 }
 
@@ -262,24 +247,21 @@ func (s *MultusNicServer) watchDevice() error {
 				if !ok {
 					continue
 				}
-				log.Infoln("device event:", event.Op.String())
-
+				log.Infof("device event: %s, name: %s", event.Op.String(), event.Name)
 				if event.Op&fsnotify.Create == fsnotify.Create {
-					// 创建文件，增加 device
-					sum := md5.Sum([]byte(event.Name))
-					s.devices[event.Name] = &pluginapi.Device{
-						ID:     string(sum[:]),
-						Health: pluginapi.Healthy,
+					if s.nextDevice < TotalDevicesCount {
+						s.devices[s.nextDevice].Health = pluginapi.Unhealthy
+						s.nextDevice++
 					}
 					s.notify <- true
-					log.Infoln("new device find:", event.Name)
 				} else if event.Op&fsnotify.Remove == fsnotify.Remove {
-					// 删除文件，删除 device
-					delete(s.devices, event.Name)
+					if s.nextDevice > 0 {
+						s.devices[s.nextDevice-1].Health = pluginapi.Healthy
+						s.nextDevice--
+					}
 					s.notify <- true
-					log.Infoln("device deleted:", event.Name)
 				}
-				log.Infoln("devices updated: ", s.devices)
+				log.Infof("Current available devices count: %d, used: %d, total: %d", TotalDevicesCount-s.nextDevice, s.nextDevice, TotalDevicesCount)
 
 			case err, ok := <-w.Errors:
 				if !ok {

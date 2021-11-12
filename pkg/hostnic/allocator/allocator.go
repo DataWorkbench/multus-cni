@@ -2,11 +2,14 @@ package allocator
 
 import (
 	"encoding/json"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
+	"os"
+	"path"
 	"sync"
 	"time"
 
+
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
@@ -48,6 +51,10 @@ func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
 	if err != nil {
 		return err
 	}
+	// touch nic addr file
+	if _, err = os.Create(path.Join(constants.DefaultMultusNicDevicesLocation, nic.ID)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -58,6 +65,10 @@ func (a *Allocator) removeNicStatus(status *nicStatus) error {
 		return err
 	}
 	delete(a.nics, status.nic.ID)
+	// remove nic addr file
+	if err = os.Remove(path.Join(constants.DefaultMultusNicDevicesLocation, status.nic.ID)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -141,6 +152,7 @@ func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 		_ = logging.Errorf("Add Nic Status to DB failed, Nic [%s], err: %v", targetNic.ID, err)
 		return nil, err
 	}
+	// touch nic name
 	return targetNic, nil
 }
 
