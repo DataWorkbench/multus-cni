@@ -561,7 +561,7 @@ func getPod(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, ignoreNotFound b
 //CmdAdd ...
 func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (cnitypes.Result, error) {
 	n, err := types.LoadNetConf(args.StdinData)
-	logging.Debugf("CmdAdd: %v, %v, %v", args, exec, kubeClient)
+	logging.Debugf("CmdAdd: %v, %v, %v, %v", args, exec, kubeClient, n)
 	if err != nil {
 		return nil, cmdErr(nil, "error loading netconf: %v", err)
 	}
@@ -616,9 +616,13 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 
 	var result, tmpResult cnitypes.Result
 	var netStatus []nettypes.NetworkStatus
+	var masterPluginIfName string
 	cniArgs := os.Getenv("CNI_ARGS")
 	for idx, delegate := range n.Delegates {
 		ifName := getIfname(delegate, args.IfName, idx)
+		if delegate.MasterPlugin{
+			masterPluginIfName = ifName
+		}
 		isMacvlanType := delegate.Conf.Type == "macvlan"
 		if isMacvlanType {
 			if err := AddNetworkInterface(k8sArgs, delegate); err != nil {
@@ -685,7 +689,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 
 		// Here we'll configure calico&&service route
 		if addK8sRouteRule {
-			err = ConfigureK8sRoute(args, "eth0")
+			err = ConfigureK8sRoute(args, masterPluginIfName)
 			if err != nil {
 				return nil, cmdErr(k8sArgs, "error configure k8s route: %v", err)
 			}

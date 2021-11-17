@@ -20,6 +20,7 @@ import (
 
 func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf) error {
 	// Set up a connection to the NICM server.
+	logging.Debugf("AddNetworkInterface begin delegate: %v args: %v", delegate, k8sArgs)
 	conn, err := grpc.Dial(constants.DefaultUnixSocketPath, grpc.WithInsecure())
 	if err != nil {
 		return logging.Errorf("failed to connect server, err=%v", err)
@@ -65,6 +66,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 			return logging.Errorf("failed to set link %s up: %v", link.Attrs().Name, err)
 		}
 	}
+	logging.Debugf("AddNetworkInterface finish delegate: %v args: %v", delegate, k8sArgs)
 	return nil
 }
 
@@ -91,32 +93,8 @@ func DelNetworkInterface(k8sArgs *types.K8sArgs) error {
 	return nil
 }
 
-func PrintRouteList(args *skel.CmdArgs, ifName string) error {
-	netns, err := ns.GetNS(args.Netns)
-	if err != nil {
-		return err
-	}
-	defer netns.Close()
-
-	// Do this within the net namespace.
-	err = netns.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(ifName)
-		if err != nil {
-			return err
-		}
-		routes, err := netlink.RouteList(link, netlink.FAMILY_ALL)
-		if err != nil {
-			return err
-		}
-		for _, route := range routes {
-			logging.Debugf("ifname :%s route rule: %v", ifName, route)
-		}
-		return nil
-	})
-	return nil
-}
-
 func ConfigureK8sRoute(args *skel.CmdArgs, ifName string) error {
+	logging.Debugf("ConfigureK8sRoute begin interface name: %s args: %v", ifName, args)
 	netns, err := ns.GetNS(args.Netns)
 	if err != nil {
 		return err
@@ -127,12 +105,8 @@ func ConfigureK8sRoute(args *skel.CmdArgs, ifName string) error {
 	err = netns.Do(func(_ ns.NetNS) error {
 		link, err := netlink.LinkByName(ifName)
 		if err != nil{
-			return err
+			return logging.Errorf("link %q not found: %v", ifName, err)
 		}
-		if err := netlink.LinkSetUp(link); err != nil {
-			return fmt.Errorf("failed to set %q UP: %v", link.Attrs().Name, err)
-		}
-
 		// add route
 		configureIPNets := []string{"10.10.0.0/16", "10.96.0.0/16"}
 		for _, IPNet := range configureIPNets {
@@ -146,7 +120,7 @@ func ConfigureK8sRoute(args *skel.CmdArgs, ifName string) error {
 				Gw: net.ParseIP("169.254.1.1"),
 			}
 			if err := netlink.RouteReplace(route); err != nil && !os.IsExist(err) {
-				return fmt.Errorf("failed to add route %v: %v", route, err)
+				return logging.Errorf("failed to add route %v: %v", route, err)
 			}
 		}
 		return nil
@@ -154,5 +128,6 @@ func ConfigureK8sRoute(args *skel.CmdArgs, ifName string) error {
 	if err != nil {
 		return err
 	}
+	logging.Debugf("ConfigureK8sRoute finish interface name: %s args: %v", ifName, args)
 	return nil
 }

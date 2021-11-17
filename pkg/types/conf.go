@@ -263,7 +263,6 @@ func LoadNetConf(bytes []byte) (*NetConf, error) {
 	// LogToStderr's default value set to true
 	netconf := &NetConf{LogToStderr: true}
 
-	logging.Debugf("LoadNetConf: %s", string(bytes))
 	if err := json.Unmarshal(bytes, netconf); err != nil {
 		return nil, logging.Errorf("LoadNetConf: failed to load netconf: %v", err)
 	}
@@ -276,7 +275,7 @@ func LoadNetConf(bytes []byte) (*NetConf, error) {
 	if netconf.LogLevel != "" {
 		logging.SetLogLevel(netconf.LogLevel)
 	}
-
+	logging.Debugf("LoadNetConf: %s", string(bytes))
 	// Parse previous result
 	if netconf.RawPrevResult != nil {
 		resultBytes, err := json.Marshal(netconf.RawPrevResult)
