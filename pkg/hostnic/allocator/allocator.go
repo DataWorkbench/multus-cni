@@ -139,14 +139,6 @@ func (a *Allocator) createAndAttachNewNic(args *rpc.PodInfo) (*rpc.HostNic, erro
 }
 
 func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd string) error {
-	// TODO remove HardCode
-	if IPStart == "" {
-		IPStart = "192.168.0.200"
-	}
-	if IPEnd == "" {
-		IPEnd = "192.168.0.216"
-	}
-
 	jobID, err := qcclient.QClient.CreateVIPs(vxNetID, IPStart, IPEnd)
 	if err != nil {
 		_ = logging.Errorf("create VIPs failed, err: %v", err)
@@ -427,6 +419,7 @@ func SetupAllocator(conf conf.PoolConf) {
 		nics:        make(map[string]*nicStatus),
 		conf:        conf,
 		deletingNic: make(map[string]bool),
+		vipJobs:     make(map[string]*vipJobInfo),
 	}
 
 	logging.Verbosef("begin to load data from LevelDB")
