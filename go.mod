@@ -5,12 +5,14 @@ go 1.15
 require (
 	github.com/containernetworking/cni v0.8.1
 	github.com/containernetworking/plugins v0.9.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.4.3
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.1-0.20210510153419-66a699ae3b05
-	github.com/onsi/ginkgo v1.12.1
+	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.3
 	github.com/pkg/errors v0.9.1
+	github.com/projectcalico/libcalico-go v1.7.2-0.20201119205058-b367043ede58
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/viper v1.7.1
 	github.com/syndtr/goleveldb v1.0.0
@@ -34,6 +36,7 @@ replace (
 	github.com/DATA-DOG/godog v0.10.0 => github.com/cucumber/godog v0.7.9
 	github.com/go-logr/logr => github.com/go-logr/logr v0.2.1
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
+	github.com/yunify/qingcloud-sdk-go => ./../qingcloud-sdk-go
 	k8s.io/api => k8s.io/api v0.20.10
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.10
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.10

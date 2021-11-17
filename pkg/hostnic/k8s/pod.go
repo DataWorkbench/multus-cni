@@ -8,7 +8,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// TODO need to rewrite
 // GetCurrentNodePods return the list of pods running on the local nodes
 func (k *Helper) GetCurrentNodePods() ([]*rpc.PodInfo, error) {
 	var localPods []*rpc.PodInfo

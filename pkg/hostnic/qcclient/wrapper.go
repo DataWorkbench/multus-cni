@@ -3,13 +3,16 @@ package qcclient
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	"math/big"
 	"time"
 
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	rpc "github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/yunify/qingcloud-sdk-go/client"
 	"github.com/yunify/qingcloud-sdk-go/config"
 	"github.com/yunify/qingcloud-sdk-go/service"
@@ -33,6 +36,7 @@ type qingcloudAPIWrapper struct {
 	instanceService *service.InstanceService
 	jobService      *service.JobService
 	tagService      *service.TagService
+	vipService      *service.VIPService
 
 	userID     string
 	instanceID string
@@ -71,6 +75,11 @@ func SetupQingCloudClient(opts Options) {
 		logging.Panicf("failed to init qingcloud sdk vxnet service, err: %v", err)
 	}
 
+	vipService, err := qcService.VIP(qsdkconfig.Zone)
+	if err != nil {
+		logging.Panicf("failed to init qingcloud sdk vip service: %v", err)
+	}
+
 	jobService, err := qcService.Job(qsdkconfig.Zone)
 	if err != nil {
 		logging.Panicf("failed to init qingcloud sdk job service, %v", err)
@@ -105,6 +114,7 @@ func SetupQingCloudClient(opts Options) {
 		instanceService: instanceService,
 		jobService:      jobService,
 		tagService:      tagService,
+		vipService:      vipService,
 
 		userID:     userId,
 		instanceID: string(instanceID),
@@ -237,6 +247,34 @@ func (q *qingcloudAPIWrapper) GetNics(nics []string) (map[string]*rpc.HostNic, e
 	return result, nil
 }
 
+func IPRangeCount(from, to string) int {
+	startIP := cnet.ParseIP(from)
+	endIP := cnet.ParseIP(to)
+	startInt := cnet.IPToBigInt(*startIP)
+	endInt := cnet.IPToBigInt(*endIP)
+	return int(big.NewInt(0).Sub(endInt, startInt).Int64() + 1)
+}
+
+func (q *qingcloudAPIWrapper) CreateVIPs(vxNetID, IPStart, IPEnd string) (string, error) {
+	vipName := constants.NicPrefix + vxNetID
+	vipRange := fmt.Sprintf("%s-%s", IPStart, IPEnd)
+	count := IPRangeCount(IPStart, IPEnd)
+	input := &service.CreateVIPsInput{
+		Count:    &count,
+		VIPName:  &vipName,
+		VxNetID:  &vxNetID,
+		VIPRange: &vipRange,
+	}
+
+	output, err := q.vipService.CreateVIPs(input)
+	if err != nil {
+		_ = logging.Errorf("failed to CreateVIPs: input (%s) output (%s) %v", spew.Sdump(input), spew.Sdump(output), err)
+		return "", err
+	}
+
+	return *output.JobID, nil
+}
+
 func (q *qingcloudAPIWrapper) CreateNicsAndAttach(vxnet *rpc.VxNet, num int, ips []string) ([]*rpc.HostNic, string, error) {
 	nicName := constants.NicPrefix + q.instanceID
 	input := &service.CreateNicsInput{
@@ -348,6 +386,29 @@ func (q *qingcloudAPIWrapper) DescribeNicJobs(ids []string) ([]string, map[strin
 	}
 
 	return left, working, nil
+}
+
+func (q *qingcloudAPIWrapper) DescribeVIPJobs(ids []string) (err error, successJobs []string, failedJobs []string) {
+	input := &service.DescribeJobsInput{
+		Jobs:  service.StringSlice(ids),
+		Limit: service.Int(constants.NicNumLimit),
+	}
+	output, err := q.jobService.DescribeJobs(input)
+	if err != nil {
+		return logging.Errorf("failed to GetJobs, %v", err), nil, nil
+	}
+
+	for _, j := range output.JobSet {
+		if *j.JobAction == "AllocateVips" {
+			if *j.Status == "failed" {
+				failedJobs = append(failedJobs, *j.JobID)
+			} else if *j.Status == "successful" || *j.Status == "done with failure" {
+				successJobs = append(successJobs, *j.JobID)
+			}
+		}
+	}
+
+	return nil, successJobs, failedJobs
 }
 
 // If NICs are belong to users, it is necessary to add Owner to VxNet

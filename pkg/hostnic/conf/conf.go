@@ -23,6 +23,7 @@ type PoolConf struct {
 	RouteTableBase int      `json:"routeTableBase,omitempty" yaml:"routeTableBase,omitempty"`
 	Tag            string   `json:"tag,omitempty" yaml:"tag,omitempty"`
 	VxNets         []string `json:"vxNets,omitempty" yaml:"vxNets,omitempty"`
+	VipSync        int      `json:"vipSync,omitempty" yaml:"sync,omitempty"`
 }
 
 type ServerConf struct {
@@ -44,6 +45,7 @@ func TryLoadFromDisk(name, path string) (*IpamConf, error) {
 			Sync:           constants.DefaultJobSyn,
 			RouteTableBase: constants.DefaultRouteTableBase,
 			NodeSync:       constants.DefaultNodeSync,
+			VipSync:        constants.DefaultVipSync,
 		},
 		Server: ServerConf{
 			ServerPath: constants.DefaultSocketPath,

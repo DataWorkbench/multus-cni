@@ -54,8 +54,8 @@ message PodInfo {
 message NICMMessage {
   PodInfo Args = 1;
   HostNic Nic = 2;
-  bool Peek = 3;
-  bool Delete = 4;
+  string IPStart = 3;
+  string IPEnd = 4;
 }
 
 message NicStatMessage {

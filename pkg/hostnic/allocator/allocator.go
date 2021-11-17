@@ -7,11 +7,10 @@ import (
 	"sync"
 	"time"
 
-
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/conf"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/db"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
@@ -22,13 +21,21 @@ type nicStatus struct {
 	info *rpc.PodInfo
 }
 
+type vipJobInfo struct {
+	vxNetID string
+	IPStart string
+	IPEnd   string
+}
+
 type Allocator struct {
 	lock          sync.RWMutex
+	vipLock       sync.Mutex
 	jobs          []string
 	nics          map[string]*nicStatus
 	conf          conf.PoolConf
 	validNicCount int32
 	deletingNic   map[string]bool
+	vipJobs       map[string]*vipJobInfo
 }
 
 func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
@@ -131,6 +138,33 @@ func (a *Allocator) createAndAttachNewNic(args *rpc.PodInfo) (*rpc.HostNic, erro
 	return nics[0], nil
 }
 
+func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd string) error {
+	// TODO remove HardCode
+	if IPStart == "" {
+		IPStart = "192.168.0.200"
+	}
+	if IPEnd == "" {
+		IPEnd = "192.168.0.216"
+	}
+
+	jobID, err := qcclient.QClient.CreateVIPs(vxNetID, IPStart, IPEnd)
+	if err != nil {
+		_ = logging.Errorf("create VIPs failed, err: %v", err)
+		_ = logging.Errorf("ignore Error For Test")
+		return nil
+	}
+
+	a.vipLock.Lock()
+	defer a.vipLock.Unlock()
+	newVipJob := &vipJobInfo{
+		vxNetID: vxNetID,
+		IPStart: IPStart,
+		IPEnd:   IPEnd,
+	}
+	a.vipJobs[jobID] = newVipJob
+	return nil
+}
+
 func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -212,6 +246,40 @@ func (a *Allocator) GetCurrentNodePods() map[string]bool {
 	}
 
 	return infoMap
+}
+
+func (a *Allocator) CheckVipJobs() {
+	a.vipLock.Lock()
+	defer a.vipLock.Unlock()
+
+	if len(a.vipJobs) <= 0 {
+		return
+	}
+
+	err, succJobs, failedJobs := qcclient.QClient.DescribeVIPJobs(a.jobs)
+	if err != nil {
+		return
+	}
+	for _, _succJob := range succJobs {
+		delete(a.vipJobs, _succJob)
+	}
+
+	newJobs := []*vipJobInfo{}
+	for _, _failedJob := range failedJobs {
+		failedJobInfo := a.vipJobs[_failedJob]
+		newJobs = append(newJobs, failedJobInfo)
+		delete(a.vipJobs, _failedJob)
+	}
+
+	go func() {
+		for _, jobInfo := range newJobs {
+			err := a.CreateVIPs(jobInfo.vxNetID, jobInfo.IPStart, jobInfo.IPEnd)
+			if err != nil {
+				_ = logging.Errorf("retry create vip failed, JobInfo %v", jobInfo)
+				continue
+			}
+		}
+	}()
 }
 
 func (a *Allocator) SyncHostNic(node bool) {
@@ -332,6 +400,7 @@ func (a *Allocator) Start(stopCh <-chan struct{}) error {
 func (a *Allocator) run(stopCh <-chan struct{}) {
 	nodeTimer := time.NewTicker(time.Duration(a.conf.NodeSync) * time.Second).C
 	jobTimer := time.NewTicker(time.Duration(a.conf.Sync) * time.Second).C
+	vipJobTimer := time.NewTicker(time.Duration(a.conf.VipSync) * time.Second).C
 	for {
 		select {
 		case <-stopCh:
@@ -342,6 +411,9 @@ func (a *Allocator) run(stopCh <-chan struct{}) {
 		case <-nodeTimer:
 			logging.Verbosef("period node sync")
 			a.SyncHostNic(true)
+		case <-vipJobTimer:
+			logging.Verbosef("period check VIP jobs")
+			a.CheckVipJobs()
 		}
 	}
 }

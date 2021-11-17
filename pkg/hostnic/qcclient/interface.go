@@ -23,6 +23,10 @@ type QingCloudAPI interface {
 	DeattachNics(nicIDs []string, sync bool) (string, error)
 	AttachNics(nicIDs []string) (string, error)
 	GetAttachedNics() ([]*rpc.HostNic, error)
+
+	// VIP
+	CreateVIPs(vxNetID, IPStart, IPEnd string) (string, error)
+	DescribeVIPJobs(ids []string) (error, []string, []string)
 }
 
 var (

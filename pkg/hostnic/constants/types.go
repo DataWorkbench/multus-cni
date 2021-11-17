@@ -2,20 +2,19 @@ package constants
 
 import (
 	"errors"
-	"fmt"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	"github.com/containernetworking/cni/pkg/types"
 )
 
 const (
-	DefaultSocketPath     = "/var/run/hostnic/hostnic.socket"
-	DefaultUnixSocketPath = "unix://" + DefaultSocketPath
-	DefaultConfigPath     = "/etc/hostnic"
-	DefaultConfigName     = "hostnic"
+	DefaultSocketPath               = "/var/run/hostnic/hostnic.socket"
+	DefaultUnixSocketPath           = "unix://" + DefaultSocketPath
+	DefaultConfigPath               = "/etc/hostnic"
+	DefaultConfigName               = "hostnic"
 	DefaultMultusNicDevicesLocation = "/var/lib/multus-nic-device"
 
 	DefaultJobSyn   = 10
 	DefaultNodeSync = 1 * 60
+	DefaultVipSync  = 5
 
 	DefaultLowPoolSize  = 3
 	DefaultHighPoolSize = 5
@@ -42,14 +41,6 @@ const (
 	ToContainerRulePriority   = 1535
 	FromContainerRulePriority = 1536
 )
-
-func GetHostNicName(routeTableNum int) string {
-	return fmt.Sprintf("%s%d", NicPrefix, routeTableNum)
-}
-
-func PodInfoKey(info *rpc.PodInfo) string {
-	return fmt.Sprintf("%s", info.Containter)
-}
 
 type ResourceType string
 
