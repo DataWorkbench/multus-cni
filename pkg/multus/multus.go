@@ -716,7 +716,10 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 				if err != nil {
 					return nil, cmdErr(k8sArgs, "error setting network status: %v", err)
 				}
-
+				// try allocating ip from config map
+				if isMacvlanType{
+					// do something
+				}
 				netStatus = append(netStatus, *delegateNetStatus)
 			}
 		} else if devinfo != nil {

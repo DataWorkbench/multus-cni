@@ -88,7 +88,14 @@ type BandwidthEntry struct {
 
 type CompatibleNetConf struct {
 	types.NetConf
+	IPAM         IPAM            `json:"ipam,omitempty"`
 	Master string `json:"master"`
+}
+
+type IPAM struct {
+	Type string `json:"type,omitempty"`
+	RangeStart string `json:"rangeStart"`
+	RangeEnd string `json:"rangeEnd"`
 }
 
 // DelegateNetConf for net-attach-def for pod
