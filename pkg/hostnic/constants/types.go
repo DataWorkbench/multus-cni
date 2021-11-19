@@ -25,6 +25,9 @@ const (
 
 	NicPrefix    = "multus_hostnic_"
 	PodRefPrefix = "pod_related_"
+	VIPConfName  = "VIPAllocator.json"
+	MaxRetry     = 3
+	VIPNumLimit  = 255
 
 	HostNicPassThrough = "passthrough"
 	HostNicVeth        = "veth"

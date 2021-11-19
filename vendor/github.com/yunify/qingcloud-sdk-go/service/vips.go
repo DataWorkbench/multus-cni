@@ -176,6 +176,7 @@ type DescribeVxNetsVIPsInput struct {
 	Offset  *int      `json:"offset" name:"offset" default:"0" location:"params"`
 	VIPName *string   `json:"vip_name" name:"vip_name" location:"params"`
 	VxNets  []*string `json:"vxnets" name:"vxnets" location:"elements"` // Required
+	VIPs    []*string `json:"vips" name:"vips" location:"elements"`
 }
 
 func (v *DescribeVxNetsVIPsInput) Validate() error {

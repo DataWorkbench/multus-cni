@@ -1,6 +1,9 @@
 package qcclient
 
-import "github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
+import (
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
+)
 
 // QingCloudAPI is a wrapper interface of qingcloud api
 type QingCloudAPI interface {
@@ -25,8 +28,10 @@ type QingCloudAPI interface {
 	GetAttachedNics() ([]*rpc.HostNic, error)
 
 	// VIP
-	CreateVIPs(vxNetID, IPStart, IPEnd string) (string, error)
+	CreateVIPs(vxNetID, IPStart, IPEnd string) (string, []string, error)
 	DescribeVIPJobs(ids []string) (error, []string, []string)
+
+	DescribeVIPs(vxNetID string, VIPs []string) (map[string]*allocator.VIPInfo, error)
 }
 
 var (

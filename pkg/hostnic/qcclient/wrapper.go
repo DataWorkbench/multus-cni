@@ -3,16 +3,16 @@ package qcclient
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"io/ioutil"
-	"math/big"
 	"time"
 
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	rpc "github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/utils"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
-	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/yunify/qingcloud-sdk-go/client"
 	"github.com/yunify/qingcloud-sdk-go/config"
 	"github.com/yunify/qingcloud-sdk-go/service"
@@ -247,18 +247,10 @@ func (q *qingcloudAPIWrapper) GetNics(nics []string) (map[string]*rpc.HostNic, e
 	return result, nil
 }
 
-func IPRangeCount(from, to string) int {
-	startIP := cnet.ParseIP(from)
-	endIP := cnet.ParseIP(to)
-	startInt := cnet.IPToBigInt(*startIP)
-	endInt := cnet.IPToBigInt(*endIP)
-	return int(big.NewInt(0).Sub(endInt, startInt).Int64() + 1)
-}
-
-func (q *qingcloudAPIWrapper) CreateVIPs(vxNetID, IPStart, IPEnd string) (string, error) {
+func (q *qingcloudAPIWrapper) CreateVIPs(vxNetID, IPStart, IPEnd string) (string, []string, error) {
 	vipName := constants.NicPrefix + vxNetID
 	vipRange := fmt.Sprintf("%s-%s", IPStart, IPEnd)
-	count := IPRangeCount(IPStart, IPEnd)
+	count := utils.IPRangeCount(IPStart, IPEnd)
 	input := &service.CreateVIPsInput{
 		Count:    &count,
 		VIPName:  &vipName,
@@ -269,10 +261,15 @@ func (q *qingcloudAPIWrapper) CreateVIPs(vxNetID, IPStart, IPEnd string) (string
 	output, err := q.vipService.CreateVIPs(input)
 	if err != nil {
 		_ = logging.Errorf("failed to CreateVIPs: input (%s) output (%s) %v", spew.Sdump(input), spew.Sdump(output), err)
-		return "", err
+		return "", []string{}, err
 	}
 
-	return *output.JobID, nil
+	vipIDs := []string{}
+	for _, id := range output.VIPs {
+		vipIDs = append(vipIDs, *id)
+	}
+
+	return *output.JobID, vipIDs, nil
 }
 
 func (q *qingcloudAPIWrapper) CreateNicsAndAttach(vxnet *rpc.VxNet, num int, ips []string) ([]*rpc.HostNic, string, error) {
@@ -409,6 +406,35 @@ func (q *qingcloudAPIWrapper) DescribeVIPJobs(ids []string) (err error, successJ
 	}
 
 	return nil, successJobs, failedJobs
+}
+
+func (q *qingcloudAPIWrapper) DescribeVIPs(vxNetID string, VIPs []string) (map[string]*allocator.VIPInfo, error) {
+	_VIPs := []*string{}
+	for _, id := range VIPs {
+		_id := id
+		_VIPs = append(_VIPs, &_id)
+	}
+	input := &service.DescribeVxNetsVIPsInput{
+		VxNets: []*string{&vxNetID},
+		VIPs:   _VIPs,
+		Limit:  service.Int(constants.VIPNumLimit),
+	}
+
+	output, err := q.vipService.DescribeVxNetsVIPs(input)
+	if err != nil {
+		_ = logging.Errorf("failed to DescribeVIPs: input (%s) output (%s) %v", spew.Sdump(input), spew.Sdump(output), err)
+		return nil, err
+	}
+
+	vipMap := make(map[string]*allocator.VIPInfo)
+	for _, vip := range output.VIPSet {
+		vipItem := &allocator.VIPInfo{
+			ID: *vip.VIPID,
+		}
+		vipMap[*vip.VIPAddr] = vipItem
+	}
+
+	return vipMap, nil
 }
 
 // If NICs are belong to users, it is necessary to add Owner to VxNet

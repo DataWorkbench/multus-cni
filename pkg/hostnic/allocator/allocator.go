@@ -21,10 +21,12 @@ type nicStatus struct {
 	info *rpc.PodInfo
 }
 
-type vipJobInfo struct {
-	vxNetID string
-	IPStart string
-	IPEnd   string
+type VipJobInfo struct {
+	VxNetID   string
+	IPStart   string
+	IPEnd     string
+	Namespace string
+	VIPs      []string
 }
 
 type Allocator struct {
@@ -35,7 +37,7 @@ type Allocator struct {
 	conf          conf.PoolConf
 	validNicCount int32
 	deletingNic   map[string]bool
-	vipJobs       map[string]*vipJobInfo
+	vipJobs       map[string]*VipJobInfo
 }
 
 func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
@@ -138,8 +140,8 @@ func (a *Allocator) createAndAttachNewNic(args *rpc.PodInfo) (*rpc.HostNic, erro
 	return nics[0], nil
 }
 
-func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd string) error {
-	jobID, err := qcclient.QClient.CreateVIPs(vxNetID, IPStart, IPEnd)
+func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd, namespace string) error {
+	jobID, vipIDs, err := qcclient.QClient.CreateVIPs(vxNetID, IPStart, IPEnd)
 	if err != nil {
 		_ = logging.Errorf("create VIPs failed, err: %v", err)
 		_ = logging.Errorf("ignore Error For Test")
@@ -148,10 +150,12 @@ func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd string) error {
 
 	a.vipLock.Lock()
 	defer a.vipLock.Unlock()
-	newVipJob := &vipJobInfo{
-		vxNetID: vxNetID,
-		IPStart: IPStart,
-		IPEnd:   IPEnd,
+	newVipJob := &VipJobInfo{
+		VxNetID:   vxNetID,
+		IPStart:   IPStart,
+		IPEnd:     IPEnd,
+		VIPs:      vipIDs,
+		Namespace: namespace,
 	}
 	a.vipJobs[jobID] = newVipJob
 	return nil
@@ -253,19 +257,25 @@ func (a *Allocator) CheckVipJobs() {
 		return
 	}
 	for _, _succJob := range succJobs {
-		delete(a.vipJobs, _succJob)
+		jobInfo := a.vipJobs[_succJob]
+		err = InitVIP(jobInfo.VxNetID, jobInfo.Namespace, jobInfo.VIPs)
+		if err != nil {
+			_ = logging.Errorf("init configMap failed with Info [%v]", jobInfo)
+		} else {
+			delete(a.vipJobs, _succJob)
+		}
 	}
 
-	newJobs := []*vipJobInfo{}
+	retryJobs := []*VipJobInfo{}
 	for _, _failedJob := range failedJobs {
 		failedJobInfo := a.vipJobs[_failedJob]
-		newJobs = append(newJobs, failedJobInfo)
+		retryJobs = append(retryJobs, failedJobInfo)
 		delete(a.vipJobs, _failedJob)
 	}
 
 	go func() {
-		for _, jobInfo := range newJobs {
-			err := a.CreateVIPs(jobInfo.vxNetID, jobInfo.IPStart, jobInfo.IPEnd)
+		for _, jobInfo := range retryJobs {
+			err := a.CreateVIPs(jobInfo.VxNetID, jobInfo.IPStart, jobInfo.IPEnd, jobInfo.Namespace)
 			if err != nil {
 				_ = logging.Errorf("retry create vip failed, JobInfo %v", jobInfo)
 				continue
@@ -419,7 +429,7 @@ func SetupAllocator(conf conf.PoolConf) {
 		nics:        make(map[string]*nicStatus),
 		conf:        conf,
 		deletingNic: make(map[string]bool),
-		vipJobs:     make(map[string]*vipJobInfo),
+		vipJobs:     make(map[string]*VipJobInfo),
 	}
 
 	logging.Verbosef("begin to load data from LevelDB")
