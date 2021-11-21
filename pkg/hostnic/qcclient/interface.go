@@ -29,6 +29,7 @@ type QingCloudAPI interface {
 
 	// VIP
 	CreateVIPs(vxNetID, IPStart, IPEnd string) (string, []string, error)
+	DeleteVIPs(vips []string) (string, error)
 	DescribeVIPJobs(ids []string) (error, []string, []string)
 
 	DescribeVIPs(vxNetID string, VIPs []string) (map[string]*allocator.VIPInfo, error)

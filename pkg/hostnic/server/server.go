@@ -86,8 +86,8 @@ func (s *NICMServer) AddNetwork(context context.Context, in *rpc.NICMMessage) (*
 		}
 	}
 
-	if !allocator.CheckVIPAllocExhausted(dataMap) {
-		return nil, logging.Errorf("VIP is not available in ConfigMap")
+	if err = allocator.CheckVIPAvailable(dataMap); err != nil {
+		return nil, err
 	}
 
 	in.Nic, err = allocator.Alloc.AllocHostNic(in.Args)
@@ -114,6 +114,8 @@ func (s *NICMServer) DelNetwork(context context.Context, in *rpc.NICMMessage) (*
 	}
 
 	in.Nic, err = allocator.Alloc.FreeHostNic(in.Args, podInfo.VxNet)
+
+	allocator.Alloc.TryToFreeVIP(podInfo.VxNet, in.Args.Namespace)
 
 	return in, nil
 }

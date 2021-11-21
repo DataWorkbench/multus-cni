@@ -6,7 +6,6 @@ import (
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/utils"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,10 +17,10 @@ import (
 
 // Data Field Value in ConfigMap
 type VIPAllocMap struct {
-	LockToDelete   bool
+	TagToDelete    bool
 	IPStart        string
 	IPEnd          string
-	VIPInfo        map[string]*VIPInfo
+	VIPDetailInfo  map[string]*VIPInfo
 	LastUpdateTime int64
 }
 
@@ -32,37 +31,51 @@ type VIPInfo struct {
 
 func (v *VIPAllocMap) CreateCMData() string {
 	newCM := &VIPAllocMap{
-		LockToDelete:   false,
+		TagToDelete:    false,
 		IPStart:        v.IPStart,
 		IPEnd:          v.IPEnd,
-		VIPInfo:        make(map[string]*VIPInfo),
+		VIPDetailInfo:  make(map[string]*VIPInfo),
 		LastUpdateTime: time.Now().Unix(),
 	}
 	newCMJson, _ := json.Marshal(newCM)
 	return string(newCMJson)
 }
 
-func (v *VIPAllocMap) CheckVIPAvailable() bool {
-	count := utils.IPRangeCount(v.IPStart, v.IPEnd)
-	if len(v.VIPInfo) < count {
-		return true
-	}
-
-	for _, _info := range v.VIPInfo {
+func (v *VIPAllocMap) CheckFreeVIP() error {
+	for _, _info := range v.VIPDetailInfo {
 		if _info.RefPodName == "" {
-			return true
+			return nil
 		}
 	}
 
-	return false
+	return logging.Errorf("no free VIP found")
+}
+
+func (v *VIPAllocMap) GetPodCount() int {
+	count := 0
+	for _, _info := range v.VIPDetailInfo {
+		if _info.RefPodName != "" {
+			count++
+		}
+	}
+	return count
+}
+
+func (v *VIPAllocMap) PrepareToDelete() []string {
+	v.TagToDelete = true
+	VIPs := []string{}
+	for _, _info := range v.VIPDetailInfo {
+		VIPs = append(VIPs, _info.ID)
+	}
+	return VIPs
 }
 
 func (v *VIPAllocMap) InitRefPodVIPInfo(VIPInfoMap map[string]*VIPInfo) {
-
+	v.VIPDetailInfo = VIPInfoMap
 }
 
 func (v *VIPAllocMap) AddRefPodVIPInfo(IPAddr, podName string) {
-	for addr, _info := range v.VIPInfo {
+	for addr, _info := range v.VIPDetailInfo {
 		if addr == IPAddr {
 			if _info.RefPodName != "" {
 				_ = logging.Errorf("VIP [%s] had been attached to Pod [%s]", addr, _info.RefPodName)
@@ -71,11 +84,12 @@ func (v *VIPAllocMap) AddRefPodVIPInfo(IPAddr, podName string) {
 		}
 	}
 
+	v.TagToDelete = false
 	v.LastUpdateTime = time.Now().Unix()
 }
 
 func (v *VIPAllocMap) RemoveRefPodVIPInfo(podName string) {
-	for addr, _info := range v.VIPInfo {
+	for addr, _info := range v.VIPDetailInfo {
 		if _info.RefPodName == podName {
 			_info.RefPodName = ""
 			logging.Verbosef("remove RefPod [%s] from addr [%s]", podName, addr)
@@ -88,22 +102,20 @@ func CreateVIPCMName(vxNetID string) string {
 	return "VIP-" + vxNetID
 }
 
-func CheckVIPAllocExhausted(dataMap map[string]string) (isValid bool) {
+func CheckVIPAvailable(dataMap map[string]string) error {
 	VIPAllocMapJson := dataMap[constants.VIPConfName]
 	if VIPAllocMapJson == "" {
-		isValid = true
-		return
+		return logging.Errorf("VIP ConfigMap has not been initialized")
 	}
 
 	vipAllocMap := &VIPAllocMap{}
 	err := json.Unmarshal([]byte(VIPAllocMapJson), vipAllocMap)
 	if err != nil {
 		_ = logging.Errorf("Parse vipAllocMap %v failed, err %v", VIPAllocMapJson, err)
-		return
+		return err
 	}
 
-	isValid = vipAllocMap.CheckVIPAvailable()
-	return
+	return vipAllocMap.CheckFreeVIP()
 }
 
 func GetVIPConfForVxNet(vxNetID, namespace, IPStart, IPEnd string) (map[string]string, bool, error) {
@@ -172,8 +184,7 @@ func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
 	})
 }
 
-// Add PodRef
-func AddPodVIP(vxNetID, namespace, podName, IPAddr string) (err error) {
+func TryFreeVIP(vxNetID, namespace string) error {
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		VIPCMName := CreateVIPCMName(vxNetID)
 		configMap, err := getConfigMap(VIPCMName, namespace)
@@ -184,6 +195,92 @@ func AddPodVIP(vxNetID, namespace, podName, IPAddr string) (err error) {
 		}
 
 		dataMapJson := configMap.Data[constants.VIPConfName]
+		if dataMapJson == "" {
+			return logging.Errorf("ConfigMap not initialized")
+		}
+		dataMap := &VIPAllocMap{}
+		err = json.Unmarshal([]byte(dataMapJson), dataMap)
+		if err != nil {
+			return err
+		}
+
+		podCount := dataMap.GetPodCount()
+		if podCount > 0 {
+			logging.Verbosef("There are [%d] pod attached", podCount)
+			return nil
+		}
+
+		if dataMap.TagToDelete {
+			logging.Verbosef("ConfigMap had been tagged to delete")
+			return nil
+		}
+
+		ids := dataMap.PrepareToDelete()
+		newDataMapJson, err := json.Marshal(dataMap)
+		if err != nil {
+			_ = logging.Errorf("failed to Get Data Json after setting delete Tag")
+			return err
+		}
+		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
+		err = k8s.K8sHelper.Client.Update(context.Background(), configMap)
+		if err == nil {
+			logging.Verbosef("set out to delete ConfigMap [%s], Namespace [%s]", VIPCMName, namespace)
+			go ClearVIPConf(VIPCMName, namespace, ids)
+		}
+		return err
+	})
+}
+
+func ClearVIPConf(cmName, namespace string, VIPs []string) {
+	delDelay := time.NewTimer(time.Duration(30) * time.Second)
+	<-delDelay.C
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		toDeleteCM := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cmName,
+				Namespace: namespace,
+			},
+		}
+		return k8s.K8sHelper.Client.Delete(context.Background(), toDeleteCM)
+	})
+	if err != nil {
+		_ = logging.Errorf("delete ConfigMap [%s], Namespace [%s] failed", cmName, namespace)
+	}
+
+	if len(VIPs) <= 0 {
+		logging.Verbosef("VIPs is empty in ConfigMap!")
+		return
+	}
+	for i := 0; i < constants.MaxRetry; i++ {
+		_, err = qcclient.QClient.DeleteVIPs(VIPs)
+		if err == nil {
+			return
+		}
+
+		_ = logging.Errorf("[%d] Delete VIPs %s failed, err: %s", i, VIPs, err)
+	}
+}
+
+// Add PodRef
+func AttachPodVIP(vxNetID, namespace, podName, IPAddr string) error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		VIPCMName := CreateVIPCMName(vxNetID)
+		configMap, err := getConfigMap(VIPCMName, namespace)
+		if err != nil {
+			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
+				VIPCMName, namespace)
+			return err
+		}
+
+		dataMapJson := configMap.Data[constants.VIPConfName]
+		if dataMapJson == "" {
+			err = logging.Errorf("configMap not initialized")
+			return err
+		}
 		dataMap := &VIPAllocMap{}
 		err = json.Unmarshal([]byte(dataMapJson), dataMap)
 		if err != nil {
@@ -193,7 +290,7 @@ func AddPodVIP(vxNetID, namespace, podName, IPAddr string) (err error) {
 		dataMap.AddRefPodVIPInfo(IPAddr, podName)
 		newDataMapJson, err := json.Marshal(dataMap)
 		if err != nil {
-			_ = logging.Errorf("failed to Get Data Json after removing PodName, err: %v", err)
+			_ = logging.Errorf("failed to Get Data Json after adding PodName, err: %v", err)
 			return err
 		}
 		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
@@ -201,8 +298,8 @@ func AddPodVIP(vxNetID, namespace, podName, IPAddr string) (err error) {
 	})
 }
 
-// Delete Pod Ref VIP info
-func DeletePodVIP(vxNetID, namespace, podName string) (err error) {
+// Detach Pod Ref VIP info
+func DetachPodVIP(vxNetID, namespace, podName string) error {
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		VIPCMName := CreateVIPCMName(vxNetID)
 		configMap, err := getConfigMap(VIPCMName, namespace)

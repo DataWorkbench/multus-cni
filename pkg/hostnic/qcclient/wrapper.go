@@ -437,6 +437,24 @@ func (q *qingcloudAPIWrapper) DescribeVIPs(vxNetID string, VIPs []string) (map[s
 	return vipMap, nil
 }
 
+func (q *qingcloudAPIWrapper) DeleteVIPs(vips []string) (string, error) {
+	if len(vips) <= 0 {
+		return "", nil
+	}
+
+	input := &service.DeleteVIPsInput{
+		VIPs: service.StringSlice(vips),
+	}
+
+	output, err := q.vipService.DeleteVIPs(input)
+	if err != nil {
+		_ = logging.Errorf("failed to DeleteVIPs: input (%s) output (%s) %v", spew.Sdump(input), spew.Sdump(output), err)
+		return "", err
+	}
+
+	return *output.JobID, nil
+}
+
 // If NICs are belong to users, it is necessary to add Owner to VxNet
 func (q *qingcloudAPIWrapper) getVxNets(ids []string, public bool) ([]*rpc.VxNet, error) {
 	input := &service.DescribeVxNetsInput{
