@@ -161,8 +161,11 @@ func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd, namespace string) error 
 	return nil
 }
 
-func (a *Allocator) TryToFreeVIP(vxNetID, namespace string) {
-
+func (a *Allocator) TryToFreeVxNetVIPs(vxNetID, namespace string) {
+	err := TryFreeVIP(vxNetID, namespace)
+	if err != nil {
+		_ = logging.Errorf("Try to free VIP failed, err: %v", err)
+	}
 }
 
 func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {

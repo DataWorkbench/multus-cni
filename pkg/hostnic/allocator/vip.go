@@ -149,10 +149,18 @@ func GetVIPConfForVxNet(vxNetID, namespace, IPStart, IPEnd string) (map[string]s
 }
 
 func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
-	VIPInfoMap, err := qcclient.QClient.DescribeVIPs(vxNetID, VIPs)
+	output, err := qcclient.QClient.DescribeVIPs(vxNetID, VIPs)
 	if err != nil {
 		_ = logging.Errorf("Query DescribeVIPs [%v] failed, err: %v", VIPs, err)
 		return err
+	}
+
+	VIPInfoMap := make(map[string]*VIPInfo)
+	for _, vip := range output.VIPSet {
+		vipItem := &VIPInfo{
+			ID: *vip.VIPID,
+		}
+		VIPInfoMap[*vip.VIPAddr] = vipItem
 	}
 
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {

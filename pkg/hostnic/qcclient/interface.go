@@ -1,8 +1,8 @@
 package qcclient
 
 import (
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
+	"github.com/yunify/qingcloud-sdk-go/service"
 )
 
 // QingCloudAPI is a wrapper interface of qingcloud api
@@ -32,7 +32,7 @@ type QingCloudAPI interface {
 	DeleteVIPs(vips []string) (string, error)
 	DescribeVIPJobs(ids []string) (error, []string, []string)
 
-	DescribeVIPs(vxNetID string, VIPs []string) (map[string]*allocator.VIPInfo, error)
+	DescribeVIPs(vxNetID string, VIPs []string) (*service.DescribeVxNetsVIPsOutput, error)
 }
 
 var (

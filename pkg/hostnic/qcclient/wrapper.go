@@ -3,7 +3,6 @@ package qcclient
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -408,7 +407,7 @@ func (q *qingcloudAPIWrapper) DescribeVIPJobs(ids []string) (err error, successJ
 	return nil, successJobs, failedJobs
 }
 
-func (q *qingcloudAPIWrapper) DescribeVIPs(vxNetID string, VIPs []string) (map[string]*allocator.VIPInfo, error) {
+func (q *qingcloudAPIWrapper) DescribeVIPs(vxNetID string, VIPs []string) (*service.DescribeVxNetsVIPsOutput, error) {
 	_VIPs := []*string{}
 	for _, id := range VIPs {
 		_id := id
@@ -426,15 +425,7 @@ func (q *qingcloudAPIWrapper) DescribeVIPs(vxNetID string, VIPs []string) (map[s
 		return nil, err
 	}
 
-	vipMap := make(map[string]*allocator.VIPInfo)
-	for _, vip := range output.VIPSet {
-		vipItem := &allocator.VIPInfo{
-			ID: *vip.VIPID,
-		}
-		vipMap[*vip.VIPAddr] = vipItem
-	}
-
-	return vipMap, nil
+	return output, nil
 }
 
 func (q *qingcloudAPIWrapper) DeleteVIPs(vips []string) (string, error) {
