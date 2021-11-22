@@ -74,18 +74,20 @@ func (v *VIPAllocMap) InitRefPodVIPInfo(VIPInfoMap map[string]*VIPInfo) {
 	v.VIPDetailInfo = VIPInfoMap
 }
 
-func (v *VIPAllocMap) AddRefPodVIPInfo(IPAddr, podName string) {
+func (v *VIPAllocMap) AddRefPodVIPInfo(podName string) (allocIP string, err error) {
 	for addr, _info := range v.VIPDetailInfo {
-		if addr == IPAddr {
-			if _info.RefPodName != "" {
-				_ = logging.Errorf("VIP [%s] had been attached to Pod [%s]", addr, _info.RefPodName)
-			}
+		if _info.RefPodName == "" {
+			_ = logging.Errorf("VIP [%s] had been attached to Pod [%s]", addr, _info.RefPodName)
 			_info.RefPodName = podName
+			allocIP = addr
+			v.TagToDelete = false
+			v.LastUpdateTime = time.Now().Unix()
+			return
 		}
 	}
 
-	v.TagToDelete = false
-	v.LastUpdateTime = time.Now().Unix()
+	err = logging.Errorf("No available IP!")
+	return
 }
 
 func (v *VIPAllocMap) RemoveRefPodVIPInfo(podName string) {
@@ -266,8 +268,9 @@ func ClearVIPConf(cmName, namespace string, VIPs []string) {
 }
 
 // Add PodRef
-func AttachPodVIP(vxNetID, namespace, podName, IPAddr string) error {
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+func AttachPodVIP(vxNetID, namespace, podName string) (string, error) {
+	var allocIP string
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		VIPCMName := CreateVIPCMName(vxNetID)
 		configMap, err := getConfigMap(VIPCMName, namespace)
 		if err != nil {
@@ -287,7 +290,10 @@ func AttachPodVIP(vxNetID, namespace, podName, IPAddr string) error {
 			_ = logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
 			return err
 		}
-		dataMap.AddRefPodVIPInfo(IPAddr, podName)
+		allocIP, err = dataMap.AddRefPodVIPInfo(podName)
+		if err != nil {
+			return err
+		}
 		newDataMapJson, err := json.Marshal(dataMap)
 		if err != nil {
 			_ = logging.Errorf("failed to Get Data Json after adding PodName, err: %v", err)
@@ -296,6 +302,7 @@ func AttachPodVIP(vxNetID, namespace, podName, IPAddr string) error {
 		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
 		return k8s.K8sHelper.Client.Update(context.Background(), configMap)
 	})
+	return allocIP, err
 }
 
 // Detach Pod Ref VIP info
