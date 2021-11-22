@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"io/ioutil"
 	"net"
 	"os"
@@ -558,6 +559,35 @@ func getPod(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, ignoreNotFound b
 	return pod, nil
 }
 
+func getConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Pod, ignoreNotFound bool) (*v1.ConfigMap, error) {
+	if kubeClient == nil {
+		return nil, nil
+	}
+	configmapNamespace := string(k8sArgs.K8S_POD_NAMESPACE)
+	configmapName := pod.GetAnnotations()[constants.AnnoHostNicVxnet]
+	configmap, err := kubeClient.GetConfigMap(configmapNamespace, configmapName)
+	if err != nil {
+		// in case of a retriable error, retry 10 times with 0.25 sec interval
+		if isCriticalRequestRetriable(err) {
+			waitErr := wait.PollImmediate(pollDuration, pollTimeout, func() (bool, error) {
+				configmap, err = kubeClient.GetConfigMap(configmapNamespace, configmapName)
+				return configmap != nil && configmap.Data[constants.VIPConfName] != "", err
+			})
+			// retry failed, then return error with retry out
+			if waitErr != nil {
+				return nil, cmdErr(k8sArgs, "error waiting for configmap: %v", err)
+			}
+		} else if ignoreNotFound && errors.IsNotFound(err) {
+			// If not found, proceed to remove interface with cache
+			return nil, nil
+		} else {
+			// Other case, return error
+			return nil, cmdErr(k8sArgs, "error getting configmap: %v", err)
+		}
+	}
+	return configmap, nil
+}
+
 //CmdAdd ...
 func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (cnitypes.Result, error) {
 	n, err := types.LoadNetConf(args.StdinData)
@@ -620,7 +650,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 	cniArgs := os.Getenv("CNI_ARGS")
 	for idx, delegate := range n.Delegates {
 		ifName := getIfname(delegate, args.IfName, idx)
-		if delegate.MasterPlugin{
+		if delegate.MasterPlugin {
 			masterPluginIfName = ifName
 		}
 		isMacvlanType := delegate.Conf.Type == "macvlan"
@@ -717,8 +747,16 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 					return nil, cmdErr(k8sArgs, "error setting network status: %v", err)
 				}
 				// try allocating ip from config map
-				if isMacvlanType{
-					// do something
+				if isMacvlanType {
+					configmap, err := getConfigMap(kubeClient, k8sArgs, pod, false)
+					if err != nil {
+						return nil, cmdErr(k8sArgs, "error setting network status: %v", err)
+					}
+					podIP, err := kubeClient.AttachPodVIP(configmap.Name, configmap.Namespace, pod.Name)
+					if err != nil {
+						return nil, cmdErr(k8sArgs, "error setting network status: %v", err)
+					}
+					delegateNetStatus.IPs = []string{podIP}
 				}
 				netStatus = append(netStatus, *delegateNetStatus)
 			}
@@ -871,6 +909,13 @@ func CmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) er
 	for _, v := range in.Delegates {
 		isMacvlanType := v.Conf.Type == "macvlan"
 		if isMacvlanType {
+			configmap, err := getConfigMap(kubeClient, k8sArgs, pod, false)
+			if err != nil {
+				return cmdErr(k8sArgs, "error delete network: %v", err)
+			}
+			if err := kubeClient.DetachPodVIP(configmap.Name, configmap.Namespace, pod.Name); err != nil {
+				return cmdErr(k8sArgs, "error delete network: %v", err)
+			}
 			if err := DelNetworkInterface(k8sArgs); err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}

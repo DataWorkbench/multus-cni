@@ -18,6 +18,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+
+	"k8s.io/client-go/util/retry"
 	"net"
 	"os"
 	"regexp"
@@ -615,4 +619,79 @@ func tryLoadK8sPodDefaultNetwork(kubeClient *ClientInfo, pod *v1.Pod, conf *type
 	delegate.MasterPlugin = true
 
 	return delegate, nil
+}
+
+func (c *ClientInfo) GetConfigMap(name, namespace string) (*v1.ConfigMap, error) {
+	configMap, err := c.Client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return configMap, nil
+}
+
+func (c *ClientInfo) AttachPodVIP(name, namespace, podName string) (string, error) {
+	var allocIP string
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		configMap, err := c.GetConfigMap(name, namespace)
+		if err != nil {
+			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
+				name, namespace)
+			return err
+		}
+
+		dataMapJson := configMap.Data[constants.VIPConfName]
+		if dataMapJson == "" {
+			err = logging.Errorf("configMap not initialized")
+			return err
+		}
+		dataMap := &allocator.VIPAllocMap{}
+		err = json.Unmarshal([]byte(dataMapJson), dataMap)
+		if err != nil {
+			_ = logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
+			return err
+		}
+		allocIP, err = dataMap.AddRefPodVIPInfo(podName)
+		if err != nil {
+			return err
+		}
+		newDataMapJson, err := json.Marshal(dataMap)
+		if err != nil {
+			_ = logging.Errorf("failed to Get Data Json after adding PodName, err: %v", err)
+			return err
+		}
+		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
+		configMap, err = c.Client.CoreV1().ConfigMaps(namespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+		return err
+	})
+	return allocIP, err
+}
+
+// Detach Pod Ref VIP info
+func (c *ClientInfo) DetachPodVIP(name, namespace, podName string) error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		configMap, err := c.GetConfigMap(name, namespace)
+		if err != nil {
+			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
+				name, namespace)
+			return err
+		}
+
+		dataMapJson := configMap.Data[constants.VIPConfName]
+		dataMap := &allocator.VIPAllocMap{}
+		err = json.Unmarshal([]byte(dataMapJson), dataMap)
+		if err != nil {
+			_ = logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
+			return err
+		}
+
+		dataMap.RemoveRefPodVIPInfo(podName)
+		newDataMapJson, err := json.Marshal(dataMap)
+		if err != nil {
+			_ = logging.Errorf("failed to Get Data Json after removing PodName, err: %v", err)
+			return err
+		}
+		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
+		configMap, err = c.Client.CoreV1().ConfigMaps(namespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+		return err
+	})
 }

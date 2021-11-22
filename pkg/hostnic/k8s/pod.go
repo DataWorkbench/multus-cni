@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
@@ -39,10 +40,10 @@ func getPodInfo(pod *corev1.Pod) *rpc.PodInfo {
 	}
 	annotations := pod.GetAnnotations()
 	if annotations != nil {
-		tmp.VxNet = annotations[AnnoHostNicVxnet]
-		tmp.HostNic = annotations[AnnoHostNic]
-		tmp.PodIP = annotations[AnnoHostNicIP]
-		tmp.NicType = annotations[AnnoHostNicType]
+		tmp.VxNet = annotations[constants.AnnoHostNicVxnet]
+		tmp.HostNic = annotations[constants.AnnoHostNic]
+		tmp.PodIP = annotations[constants.AnnoHostNicIP]
+		tmp.NicType = annotations[constants.AnnoHostNicType]
 	}
 
 	return tmp
@@ -61,11 +62,11 @@ func (k *Helper) needSetVxnetForNode(vxnets []string) (error, bool) {
 }
 
 func needSetAnnotation(annos map[string]string, vxnets []string) bool {
-	if annos == nil || annos[AnnoHostNicVxnet] == "" {
+	if annos == nil || annos[constants.AnnoHostNicVxnet] == "" {
 		return true
 	}
 
-	vxnet := annos[AnnoHostNicVxnet]
+	vxnet := annos[constants.AnnoHostNicVxnet]
 	need := true
 	for _, tmp := range vxnets {
 		if tmp == vxnet {
@@ -97,7 +98,7 @@ func (k *Helper) getNodeVxnetUsage(vxnets []string) (error, map[string]int, bool
 			}
 			continue
 		}
-		result[node.Annotations[AnnoHostNicVxnet]]++
+		result[node.Annotations[constants.AnnoHostNicVxnet]]++
 	}
 
 	if latest.Name == k.NodeName {
@@ -117,7 +118,7 @@ func (k *Helper) updateNodeVxnet(vxnet string) error {
 		if node.Annotations == nil {
 			node.Annotations = make(map[string]string)
 		}
-		node.Annotations[AnnoHostNicVxnet] = vxnet
+		node.Annotations[constants.AnnoHostNicVxnet] = vxnet
 		return k.Client.Update(context.Background(), node)
 	})
 }

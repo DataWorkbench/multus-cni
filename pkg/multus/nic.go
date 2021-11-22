@@ -36,7 +36,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 				Containter: string(k8sArgs.K8S_POD_INFRA_CONTAINER_ID),
 			},
 			IPStart: delegate.Conf.IPAM.RangeStart,
-			IPEnd: delegate.Conf.IPAM.RangeEnd,
+			IPEnd:   delegate.Conf.IPAM.RangeEnd,
 		})
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 		}
 		time.Sleep(1 * time.Second)
 	}
-	if link == nil{
+	if link == nil {
 		return constants.ErrNicNotFound
 	}
 	if link.Attrs().Name != delegate.Conf.Master {
@@ -108,7 +108,7 @@ func ConfigureK8sRoute(args *skel.CmdArgs, ifName string) error {
 	// Do this within the net namespace.
 	err = netns.Do(func(_ ns.NetNS) error {
 		link, err := netlink.LinkByName(ifName)
-		if err != nil{
+		if err != nil {
 			return logging.Errorf("link %q not found: %v", ifName, err)
 		}
 		// add route

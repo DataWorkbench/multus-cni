@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"os"
 
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
@@ -10,15 +11,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-)
-
-const (
-	// NodeNameEnvKey is env to get the name of current node
-	NodeNameEnvKey   = "MY_NODE_NAME"
-	AnnoHostNicVxnet = "multus.network.dataworkbench.io/vxnet"
-	AnnoHostNic      = "multus.network.dataworkbench.io/nic"
-	AnnoHostNicIP    = "multus.network.dataworkbench.io/ip"
-	AnnoHostNicType  = "multus.network.dataworkbench.io/type"
 )
 
 type Helper struct {
@@ -49,7 +41,7 @@ func SetupK8sHelper() {
 		logging.Panicf("failed to new k8s manager: %v", err)
 	}
 
-	nodeName := os.Getenv(NodeNameEnvKey)
+	nodeName := os.Getenv(constants.NodeNameEnvKey)
 	if nodeName == "" {
 		logging.Panicf("node name should not be empty")
 	}

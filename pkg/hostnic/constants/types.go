@@ -93,3 +93,12 @@ var (
 	ErrNoAvailableNIC = errors.New("no free nic")
 	ErrNicNotFound    = errors.New("hostnic not found")
 )
+
+const (
+	// NodeNameEnvKey is env to get the name of current node
+	NodeNameEnvKey   = "MY_NODE_NAME"
+	AnnoHostNicVxnet = "multus.network.dataworkbench.io/vxnet"
+	AnnoHostNic      = "multus.network.dataworkbench.io/nic"
+	AnnoHostNicIP    = "multus.network.dataworkbench.io/ip"
+	AnnoHostNicType  = "multus.network.dataworkbench.io/type"
+)
