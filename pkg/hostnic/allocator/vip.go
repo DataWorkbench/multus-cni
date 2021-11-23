@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 	"time"
 )
 
@@ -101,7 +102,7 @@ func (v *VIPAllocMap) RemoveRefPodVIPInfo(podName string) {
 }
 
 func CreateVIPCMName(vxNetID string) string {
-	return "VIP-" + vxNetID
+	return "vip-" + strings.ToLower(vxNetID)
 }
 
 func CheckVIPAvailable(dataMap map[string]string) error {
