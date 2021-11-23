@@ -260,7 +260,12 @@ func (a *Allocator) CheckVipJobs() {
 		return
 	}
 
-	err, succJobs, failedJobs := qcclient.QClient.DescribeVIPJobs(a.jobs)
+	currVipJobIDs := []string{}
+	for _jobID, _ := range a.vipJobs {
+		currVipJobIDs = append(currVipJobIDs, _jobID)
+	}
+
+	err, succJobs, failedJobs := qcclient.QClient.DescribeVIPJobs(currVipJobIDs)
 	if err != nil {
 		return
 	}
