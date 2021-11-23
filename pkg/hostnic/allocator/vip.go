@@ -120,6 +120,10 @@ func CheckVIPAvailable(dataMap map[string]string) error {
 	return vipAllocMap.CheckFreeVIP()
 }
 
+func PrintErrReason(err error, desc string) {
+	logging.Verbosef("%s, Error Reason: [%s]", desc, string(k8serrors.ReasonForError(err)))
+}
+
 func GetVIPConfForVxNet(vxNetID, namespace, IPStart, IPEnd string) (map[string]string, bool, error) {
 	var needToCreateVIP bool
 	VIPCMName := CreateVIPCMName(vxNetID)
@@ -128,6 +132,7 @@ func GetVIPConfForVxNet(vxNetID, namespace, IPStart, IPEnd string) (map[string]s
 		return configMap.Data, needToCreateVIP, nil
 	}
 
+	PrintErrReason(err, "Try to get ConfigMap failed")
 	if k8serrors.IsNotFound(err) {
 		for i := 0; i < constants.MaxRetry; i++ {
 			err = createConfigMap(VIPCMName, namespace, IPStart, IPEnd)
@@ -377,6 +382,7 @@ func createConfigMap(name, namespace, IPStart, IPEnd string) error {
 	}
 	err := k8s.K8sHelper.Client.Create(context.Background(), newConfigMap)
 	if err != nil {
+		PrintErrReason(err, "Create ConfigMap failed")
 		if k8serrors.IsAlreadyExists(err) || k8serrors.IsConflict(err) {
 			logging.Verbosef("ConfigMap for Name [%s] Namespace [%s] IPStart [%s] IPEnd [%s] exist",
 				name, namespace, IPStart, IPEnd)
