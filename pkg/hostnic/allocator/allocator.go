@@ -107,7 +107,7 @@ func (a *Allocator) getVxnets(vxnet string) (*rpc.VxNet, error) {
 func (a *Allocator) getValidNic(vxNet string) *nicStatus {
 	for _, nic := range a.nics {
 		if a.IsDeleting(nic.nic.ID) {
-			logging.Verbosef("nic [%s] is being deleting status")
+			logging.Verbosef("nic [%s] is being deleting status", nic.nic.ID)
 			continue
 		}
 

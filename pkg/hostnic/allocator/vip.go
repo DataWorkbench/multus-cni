@@ -157,7 +157,7 @@ func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
 		VIPCMName := CreateVIPCMName(vxNetID)
 		configMap, err := getConfigMap(VIPCMName, namespace)
 		if err != nil {
-			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
+			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for initializing",
 				VIPCMName, namespace)
 			return err
 		}
