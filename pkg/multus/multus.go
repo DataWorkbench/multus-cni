@@ -560,50 +560,40 @@ func getPod(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, ignoreNotFound b
 	return pod, nil
 }
 
-func getConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Pod, ignoreNotFound bool) (*v1.ConfigMap, error) {
+func getConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Pod) (*v1.ConfigMap, error) {
 	if kubeClient == nil {
 		return nil, nil
 	}
 	configmapNamespace := string(k8sArgs.K8S_POD_NAMESPACE)
 	configmapName := strings.ToLower("vip-" + pod.GetAnnotations()[constants.AnnoHostNicVxnet])
-	configmap, err := kubeClient.GetConfigMap(configmapName, configmapNamespace)
-	if err != nil {
-		// in case of a retriable error, retry 10 times with 0.25 sec interval
-		if isCriticalRequestRetriable(err) {
-			waitErr := wait.PollImmediate(pollDuration, pollTimeout, func() (bool, error) {
-				configmap, err = kubeClient.GetConfigMap(configmapName, configmapNamespace)
-				if err != nil{
-					return true, err
-				}else {
-					logging.Debugf("config map %s [namespace %s]: %v", configmap, configmapNamespace, configmap)
-					if configmap != nil{
-						dataMapJson := configmap.Data[constants.VIPConfName]
-						logging.Debugf("config map %s [namespace %s] %s: %s", configmap, configmapNamespace, constants.VIPConfName, dataMapJson)
-						if dataMapJson == "" {
-							return false, err
-						}
-						dataMap := &allocator.VIPAllocMap{}
-						err = json.Unmarshal([]byte(dataMapJson), dataMap)
-						if err != nil {
-							logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
-							return false, err
-						}
-						return len(dataMap.VIPDetailInfo) != 0, err
-					}
+	var configmap *v1.ConfigMap
+	var err error
+	waitErr := wait.PollImmediate(pollDuration, pollTimeout, func() (bool, error) {
+		configmap, err = kubeClient.GetConfigMap(configmapName, configmapNamespace)
+		if err != nil{
+			return true, err
+		}else {
+			logging.Debugf("config map %s [namespace %s]: %v", configmap, configmapNamespace, configmap)
+			if configmap != nil{
+				dataMapJson := configmap.Data[constants.VIPConfName]
+				logging.Debugf("config map %s [namespace %s] %s: %s", configmap, configmapNamespace, constants.VIPConfName, dataMapJson)
+				if dataMapJson == "" {
 					return false, err
 				}
-			})
-			// retry failed, then return error with retry out
-			if waitErr != nil {
-				return nil, cmdErr(k8sArgs, "error waiting for configmap: %v", err)
+				dataMap := &allocator.VIPAllocMap{}
+				err = json.Unmarshal([]byte(dataMapJson), dataMap)
+				if err != nil {
+					logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
+					return false, err
+				}
+				return len(dataMap.VIPDetailInfo) != 0, err
 			}
-		} else if ignoreNotFound && errors.IsNotFound(err) {
-			// If not found, proceed to remove interface with cache
-			return nil, nil
-		} else {
-			// Other case, return error
-			return nil, cmdErr(k8sArgs, "error getting configmap: %v", err)
+			return false, err
 		}
+	})
+	// retry failed, then return error with retry out
+	if waitErr != nil {
+		return nil, cmdErr(k8sArgs, "error waiting for configmap: %v", err)
 	}
 	return configmap, nil
 }
@@ -768,7 +758,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 				}
 				// try allocating ip from config map
 				if isMacvlanType {
-					configmap, err := getConfigMap(kubeClient, k8sArgs, pod, false)
+					configmap, err := getConfigMap(kubeClient, k8sArgs, pod)
 					if err != nil {
 						return nil, cmdErr(k8sArgs, "error setting network status: %v", err)
 					}
@@ -929,7 +919,7 @@ func CmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) er
 	for _, v := range in.Delegates {
 		isMacvlanType := v.Conf.Type == "macvlan"
 		if isMacvlanType {
-			configmap, err := getConfigMap(kubeClient, k8sArgs, pod, false)
+			configmap, err := getConfigMap(kubeClient, k8sArgs, pod)
 			if err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
