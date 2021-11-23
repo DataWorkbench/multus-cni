@@ -565,12 +565,12 @@ func getConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Po
 	}
 	configmapNamespace := string(k8sArgs.K8S_POD_NAMESPACE)
 	configmapName := pod.GetAnnotations()[constants.AnnoHostNicVxnet]
-	configmap, err := kubeClient.GetConfigMap(configmapNamespace, configmapName)
+	configmap, err := kubeClient.GetConfigMap(configmapName, configmapNamespace)
 	if err != nil {
 		// in case of a retriable error, retry 10 times with 0.25 sec interval
 		if isCriticalRequestRetriable(err) {
 			waitErr := wait.PollImmediate(pollDuration, pollTimeout, func() (bool, error) {
-				configmap, err = kubeClient.GetConfigMap(configmapNamespace, configmapName)
+				configmap, err = kubeClient.GetConfigMap(configmapName, configmapNamespace)
 				return configmap != nil && configmap.Data[constants.VIPConfName] != "", err
 			})
 			// retry failed, then return error with retry out

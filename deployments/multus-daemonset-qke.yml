@@ -62,6 +62,7 @@ rules:
       - pods/status
       - nodes
       - namespaces
+      - configmaps
     verbs:
       - list
       - watch
