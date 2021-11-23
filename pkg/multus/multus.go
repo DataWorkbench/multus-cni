@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"io/ioutil"
 	"net"
@@ -571,7 +572,26 @@ func getConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Po
 		if isCriticalRequestRetriable(err) {
 			waitErr := wait.PollImmediate(pollDuration, pollTimeout, func() (bool, error) {
 				configmap, err = kubeClient.GetConfigMap(configmapName, configmapNamespace)
-				return configmap != nil && configmap.Data[constants.VIPConfName] != "", err
+				if err != nil{
+					return true, err
+				}else {
+					logging.Debugf("config map %s [namespace %s]: %v", configmap, configmapNamespace, configmap)
+					if configmap != nil{
+						dataMapJson := configmap.Data[constants.VIPConfName]
+						logging.Debugf("config map %s [namespace %s] %s: %s", configmap, configmapNamespace, constants.VIPConfName, dataMapJson)
+						if dataMapJson == "" {
+							return false, err
+						}
+						dataMap := &allocator.VIPAllocMap{}
+						err = json.Unmarshal([]byte(dataMapJson), dataMap)
+						if err != nil {
+							logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
+							return false, err
+						}
+						return len(dataMap.VIPDetailInfo) != 0, err
+					}
+					return false, err
+				}
 			})
 			// retry failed, then return error with retry out
 			if waitErr != nil {
