@@ -139,6 +139,7 @@ func GetVIPConfForVxNet(vxNetID, namespace, IPStart, IPEnd string) (map[string]s
 }
 
 func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
+	logging.Verbosef("Set out to init VIPs, vxNetId [%s], namespace [%s], VIPs %v", vxNetID, namespace, VIPs)
 	output, err := qcclient.QClient.DescribeVIPs(vxNetID, VIPs)
 	if err != nil {
 		_ = logging.Errorf("Query DescribeVIPs [%v] failed, err: %v", VIPs, err)
