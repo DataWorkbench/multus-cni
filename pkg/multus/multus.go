@@ -60,6 +60,8 @@ var (
 var (
 	pollDuration = 1000 * time.Millisecond
 	pollTimeout  = 45 * time.Second
+	configmapPollDuration = 1 * time.Second
+	configmapPollTimeout = 10 * time.Second
 )
 
 //PrintVersionString ...
@@ -568,7 +570,7 @@ func getConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Po
 	configmapName := strings.ToLower("vip-" + pod.GetAnnotations()[constants.AnnoHostNicVxnet])
 	var configmap *v1.ConfigMap
 	var err error
-	waitErr := wait.PollImmediate(pollDuration, pollTimeout, func() (bool, error) {
+	waitErr := wait.PollImmediate(configmapPollDuration, configmapPollTimeout, func() (bool, error) {
 		configmap, err = kubeClient.GetConfigMap(configmapName, configmapNamespace)
 		if err != nil{
 			return true, err
@@ -593,7 +595,8 @@ func getConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Po
 	})
 	// retry failed, then return error with retry out
 	if waitErr != nil {
-		return nil, cmdErr(k8sArgs, "error waiting for configmap: %v", err)
+
+		return nil, cmdErr(k8sArgs, "error waiting for configmap: %v", waitErr)
 	}
 	return configmap, nil
 }
