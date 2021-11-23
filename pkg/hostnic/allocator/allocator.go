@@ -256,6 +256,7 @@ func (a *Allocator) CheckVipJobs() {
 	defer a.vipLock.Unlock()
 
 	if len(a.vipJobs) <= 0 {
+		logging.Verbosef("vipJobs is empty, skip..")
 		return
 	}
 
@@ -265,6 +266,7 @@ func (a *Allocator) CheckVipJobs() {
 	}
 	for _, _succJob := range succJobs {
 		jobInfo := a.vipJobs[_succJob]
+		logging.Verbosef("Job [%s] succeed, Init vipDetailInfo", _succJob)
 		err = InitVIP(jobInfo.VxNetID, jobInfo.Namespace, jobInfo.VIPs)
 		if err != nil {
 			_ = logging.Errorf("init configMap failed with Info [%v]", jobInfo)
