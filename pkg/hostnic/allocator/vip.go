@@ -108,7 +108,8 @@ func CreateVIPCMName(vxNetID string) string {
 func CheckVIPAvailable(dataMap map[string]string) error {
 	VIPAllocMapJson := dataMap[constants.VIPConfName]
 	if VIPAllocMapJson == "" {
-		return logging.Errorf("VIP ConfigMap has not been initialized")
+		logging.Verbosef("Waiting for VIP configMap initializing")
+		return nil
 	}
 
 	vipAllocMap := &VIPAllocMap{}
