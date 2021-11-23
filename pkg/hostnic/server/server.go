@@ -78,16 +78,12 @@ func (s *NICMServer) AddNetwork(context context.Context, in *rpc.NICMMessage) (*
 		logging.Verbosef("handle server add reply (%v), err %v", in.Nic, err)
 	}()
 
-	dataMap, needToCreateVIP, err := allocator.GetVIPConfForVxNet(info.VxNet, in.Args.Namespace, in.IPStart, in.IPEnd)
+	_, needToCreateVIP, err := allocator.GetVIPConfForVxNet(info.VxNet, in.Args.Namespace, in.IPStart, in.IPEnd)
 	if needToCreateVIP {
 		err = allocator.Alloc.CreateVIPs(info.VxNet, in.IPStart, in.IPEnd, in.Args.Namespace)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if err = allocator.CheckVIPAvailable(dataMap); err != nil {
-		return nil, err
 	}
 
 	in.Nic, err = allocator.Alloc.AllocHostNic(in.Args)

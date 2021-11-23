@@ -105,23 +105,6 @@ func CreateVIPCMName(vxNetID string) string {
 	return "vip-" + strings.ToLower(vxNetID)
 }
 
-func CheckVIPAvailable(dataMap map[string]string) error {
-	VIPAllocMapJson := dataMap[constants.VIPConfName]
-	if VIPAllocMapJson == "" {
-		logging.Verbosef("Waiting for VIP configMap initializing")
-		return nil
-	}
-
-	vipAllocMap := &VIPAllocMap{}
-	err := json.Unmarshal([]byte(VIPAllocMapJson), vipAllocMap)
-	if err != nil {
-		_ = logging.Errorf("Parse vipAllocMap %v failed, err %v", VIPAllocMapJson, err)
-		return err
-	}
-
-	return vipAllocMap.CheckFreeVIP()
-}
-
 func PrintErrReason(err error, desc string) {
 	logging.Verbosef("%s, Error Reason: [%s]", desc, string(k8serrors.ReasonForError(err)))
 }
