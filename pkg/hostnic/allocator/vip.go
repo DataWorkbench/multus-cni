@@ -283,7 +283,7 @@ func ClearVIPConf(vxNetID, cmName, namespace, nodeUUID string, VIPs []string) {
 		return k8s.K8sHelper.Client.Delete(context.Background(), toDeleteCM)
 	})
 	if err != nil {
-		_ = logging.Errorf("delete ConfigMap [%s], Namespace [%s] failed", cmName, namespace)
+		_ = logging.Errorf("delete ConfigMap [%s], Namespace [%s] failed, err: %v", cmName, namespace, err)
 	}
 
 	if len(VIPs) <= 0 {
