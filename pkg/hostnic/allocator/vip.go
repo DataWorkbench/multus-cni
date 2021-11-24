@@ -75,6 +75,10 @@ func (v *VIPAllocMap) InitRefPodVIPInfo(VIPInfoMap map[string]*VIPInfo) {
 	v.VIPDetailInfo = VIPInfoMap
 }
 
+func (v *VIPAllocMap) IsInitialized() bool {
+	return len(v.VIPDetailInfo) > 0
+}
+
 func (v *VIPAllocMap) AddRefPodVIPInfo(podName string) (allocIP string, err error) {
 	for addr, _info := range v.VIPDetailInfo {
 		if _info.RefPodName == "" {
@@ -164,14 +168,15 @@ func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
 		}
 
 		dataMapJson := configMap.Data[constants.VIPConfName]
-		if dataMapJson != "" {
-			return logging.Errorf("ConfigMap Data [%s] had been initialized", dataMapJson)
-		}
 		dataMap := &VIPAllocMap{}
 		err = json.Unmarshal([]byte(dataMapJson), dataMap)
 		if err != nil {
 			_ = logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
 			return err
+		}
+
+		if dataMap.IsInitialized() {
+			return logging.Errorf("ConfigMap Data [%s] had been initialized", dataMapJson)
 		}
 
 		dataMap.InitRefPodVIPInfo(VIPInfoMap)
@@ -196,13 +201,13 @@ func TryFreeVIP(vxNetID, namespace string) error {
 		}
 
 		dataMapJson := configMap.Data[constants.VIPConfName]
-		if dataMapJson == "" {
-			return logging.Errorf("ConfigMap not initialized")
-		}
 		dataMap := &VIPAllocMap{}
 		err = json.Unmarshal([]byte(dataMapJson), dataMap)
 		if err != nil {
 			return err
+		}
+		if !dataMap.IsInitialized() {
+			return logging.Errorf("ConfigMap not initialized")
 		}
 
 		podCount := dataMap.GetPodCount()
@@ -264,74 +269,6 @@ func ClearVIPConf(cmName, namespace string, VIPs []string) {
 
 		_ = logging.Errorf("[%d] Delete VIPs %s failed, err: %s", i, VIPs, err)
 	}
-}
-
-// Add PodRef
-func AttachPodVIP(vxNetID, namespace, podName string) (string, error) {
-	var allocIP string
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		VIPCMName := CreateVIPCMName(vxNetID)
-		configMap, err := getConfigMap(VIPCMName, namespace)
-		if err != nil {
-			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
-				VIPCMName, namespace)
-			return err
-		}
-
-		dataMapJson := configMap.Data[constants.VIPConfName]
-		if dataMapJson == "" {
-			err = logging.Errorf("configMap not initialized")
-			return err
-		}
-		dataMap := &VIPAllocMap{}
-		err = json.Unmarshal([]byte(dataMapJson), dataMap)
-		if err != nil {
-			_ = logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
-			return err
-		}
-		allocIP, err = dataMap.AddRefPodVIPInfo(podName)
-		if err != nil {
-			return err
-		}
-		newDataMapJson, err := json.Marshal(dataMap)
-		if err != nil {
-			_ = logging.Errorf("failed to Get Data Json after adding PodName, err: %v", err)
-			return err
-		}
-		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
-		return k8s.K8sHelper.Client.Update(context.Background(), configMap)
-	})
-	return allocIP, err
-}
-
-// Detach Pod Ref VIP info
-func DetachPodVIP(vxNetID, namespace, podName string) error {
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		VIPCMName := CreateVIPCMName(vxNetID)
-		configMap, err := getConfigMap(VIPCMName, namespace)
-		if err != nil {
-			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
-				VIPCMName, namespace)
-			return err
-		}
-
-		dataMapJson := configMap.Data[constants.VIPConfName]
-		dataMap := &VIPAllocMap{}
-		err = json.Unmarshal([]byte(dataMapJson), dataMap)
-		if err != nil {
-			_ = logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
-			return err
-		}
-
-		dataMap.RemoveRefPodVIPInfo(podName)
-		newDataMapJson, err := json.Marshal(dataMap)
-		if err != nil {
-			_ = logging.Errorf("failed to Get Data Json after removing PodName, err: %v", err)
-			return err
-		}
-		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
-		return k8s.K8sHelper.Client.Update(context.Background(), configMap)
-	})
 }
 
 func getConfigMap(name, namespace string) (*corev1.ConfigMap, error) {
