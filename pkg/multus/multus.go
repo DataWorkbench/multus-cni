@@ -61,7 +61,7 @@ var (
 	pollDuration = 1000 * time.Millisecond
 	pollTimeout  = 45 * time.Second
 	configmapPollDuration = 1 * time.Second
-	configmapPollTimeout = 10 * time.Second
+	configmapPollTimeout = 30 * time.Second
 )
 
 //PrintVersionString ...
