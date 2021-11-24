@@ -562,7 +562,7 @@ func getPod(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, ignoreNotFound b
 	return pod, nil
 }
 
-func getConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Pod) (*v1.ConfigMap, error) {
+func tryLoadConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Pod) (*v1.ConfigMap, error) {
 	if kubeClient == nil {
 		return nil, nil
 	}
@@ -671,6 +671,15 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 			if err := AddNetworkInterface(k8sArgs, delegate); err != nil {
 				return nil, cmdErr(k8sArgs, "error add network: %v", err)
 			}
+			configmap, err := tryLoadConfigMap(kubeClient, k8sArgs, pod)
+			if err != nil {
+				return nil, cmdErr(k8sArgs, "error try load configmap: %v", err)
+			}
+			podIP, err := kubeClient.AllocatePodIP(configmap.Name, configmap.Namespace, pod.Name)
+			if err != nil {
+				return nil, cmdErr(k8sArgs, "error attach pod vip network status: %v", err)
+			}
+			delegate.IPRequest = []string{podIP}
 		}
 		rt, cniDeviceInfoPath := types.CreateCNIRuntimeConf(args, k8sArgs, ifName, n.RuntimeConfig, delegate)
 		if cniDeviceInfoPath != "" && delegate.ResourceName != "" && delegate.DeviceID != "" {
@@ -758,18 +767,6 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 				delegateNetStatus, err := nadutils.CreateNetworkStatus(tmpResult, delegate.Name, delegate.MasterPlugin, devinfo)
 				if err != nil {
 					return nil, cmdErr(k8sArgs, "error setting network status: %v", err)
-				}
-				// try allocating ip from config map
-				if isMacvlanType {
-					configmap, err := getConfigMap(kubeClient, k8sArgs, pod)
-					if err != nil {
-						return nil, cmdErr(k8sArgs, "error setting network status: %v", err)
-					}
-					podIP, err := kubeClient.AttachPodVIP(configmap.Name, configmap.Namespace, pod.Name)
-					if err != nil {
-						return nil, cmdErr(k8sArgs, "error setting network status: %v", err)
-					}
-					delegateNetStatus.IPs = []string{podIP}
 				}
 				netStatus = append(netStatus, *delegateNetStatus)
 			}
@@ -922,11 +919,11 @@ func CmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) er
 	for _, v := range in.Delegates {
 		isMacvlanType := v.Conf.Type == "macvlan"
 		if isMacvlanType {
-			configmap, err := getConfigMap(kubeClient, k8sArgs, pod)
+			configmap, err := tryLoadConfigMap(kubeClient, k8sArgs, pod)
 			if err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
-			if err := kubeClient.DetachPodVIP(configmap.Name, configmap.Namespace, pod.Name); err != nil {
+			if err := kubeClient.ReleasePodIP(configmap.Name, configmap.Namespace, pod.Name); err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
 			if err := DelNetworkInterface(k8sArgs); err != nil {

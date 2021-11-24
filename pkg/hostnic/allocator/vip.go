@@ -89,11 +89,11 @@ func (v *VIPAllocMap) ReadyToDelete(nodeUUID string) bool {
 func (v *VIPAllocMap) AddRefPodVIPInfo(podName string) (allocIP string, err error) {
 	for addr, _info := range v.VIPDetailInfo {
 		if _info.RefPodName == "" {
-			_ = logging.Errorf("VIP [%s] had been attached to Pod [%s]", addr, _info.RefPodName)
 			_info.RefPodName = podName
 			allocIP = addr
 			v.TagToDelete = false
 			v.LastUpdateTime = time.Now().Unix()
+			logging.Debugf("VIP [%s] is allocated to Pod [%s]", addr, podName)
 			return
 		}
 	}

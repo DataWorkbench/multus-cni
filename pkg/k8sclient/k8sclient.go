@@ -629,7 +629,7 @@ func (c *ClientInfo) GetConfigMap(name, namespace string) (*v1.ConfigMap, error)
 	return configMap, nil
 }
 
-func (c *ClientInfo) AttachPodVIP(name, namespace, podName string) (string, error) {
+func (c *ClientInfo) AllocatePodIP(name, namespace, podName string) (string, error) {
 	var allocIP string
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		configMap, err := c.GetConfigMap(name, namespace)
@@ -667,7 +667,7 @@ func (c *ClientInfo) AttachPodVIP(name, namespace, podName string) (string, erro
 }
 
 // Detach Pod Ref VIP info
-func (c *ClientInfo) DetachPodVIP(name, namespace, podName string) error {
+func (c *ClientInfo) ReleasePodIP(name, namespace, podName string) error {
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		configMap, err := c.GetConfigMap(name, namespace)
 		if err != nil {
