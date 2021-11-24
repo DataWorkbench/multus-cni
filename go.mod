@@ -9,6 +9,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.4.3
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.1-0.20210510153419-66a699ae3b05
+	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.3
 	github.com/pkg/errors v0.9.1

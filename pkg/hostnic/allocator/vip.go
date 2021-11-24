@@ -7,6 +7,7 @@ import (
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	"github.com/matoous/go-nanoid/v2"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +24,7 @@ type VIPAllocMap struct {
 	IPEnd          string
 	VIPDetailInfo  map[string]*VIPInfo
 	LastUpdateTime int64
+	NodeUUID       string
 }
 
 type VIPInfo struct {
@@ -62,8 +64,9 @@ func (v *VIPAllocMap) GetPodCount() int {
 	return count
 }
 
-func (v *VIPAllocMap) PrepareToDelete() []string {
+func (v *VIPAllocMap) PrepareToDelete(nodeUUID string) []string {
 	v.TagToDelete = true
+	v.NodeUUID = nodeUUID
 	VIPs := []string{}
 	for _, _info := range v.VIPDetailInfo {
 		VIPs = append(VIPs, _info.ID)
@@ -77,6 +80,10 @@ func (v *VIPAllocMap) InitRefPodVIPInfo(VIPInfoMap map[string]*VIPInfo) {
 
 func (v *VIPAllocMap) IsInitialized() bool {
 	return len(v.VIPDetailInfo) > 0
+}
+
+func (v *VIPAllocMap) ReadyToDelete(nodeUUID string) bool {
+	return v.NodeUUID == nodeUUID && v.TagToDelete
 }
 
 func (v *VIPAllocMap) AddRefPodVIPInfo(podName string) (allocIP string, err error) {
@@ -221,7 +228,8 @@ func TryFreeVIP(vxNetID, namespace string) error {
 			return nil
 		}
 
-		ids := dataMap.PrepareToDelete()
+		nodeUUID, _ := gonanoid.New()
+		ids := dataMap.PrepareToDelete(nodeUUID)
 		newDataMapJson, err := json.Marshal(dataMap)
 		if err != nil {
 			_ = logging.Errorf("failed to Get Data Json after setting delete Tag")
@@ -231,16 +239,37 @@ func TryFreeVIP(vxNetID, namespace string) error {
 		err = k8s.K8sHelper.Client.Update(context.Background(), configMap)
 		if err == nil {
 			logging.Verbosef("set out to delete ConfigMap [%s], Namespace [%s]", VIPCMName, namespace)
-			go ClearVIPConf(VIPCMName, namespace, ids)
+			go ClearVIPConf(vxNetID, VIPCMName, namespace, nodeUUID, ids)
 		}
 		return err
 	})
 }
 
-func ClearVIPConf(cmName, namespace string, VIPs []string) {
+func ClearVIPConf(vxNetID, cmName, namespace, nodeUUID string, VIPs []string) {
 	delDelay := time.NewTimer(time.Duration(30) * time.Second)
 	<-delDelay.C
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+
+	VIPCMName := CreateVIPCMName(vxNetID)
+	configMap, err := getConfigMap(VIPCMName, namespace)
+	if err != nil {
+		_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
+			VIPCMName, namespace)
+		return
+	}
+
+	dataMapJson := configMap.Data[constants.VIPConfName]
+	dataMap := &VIPAllocMap{}
+	err = json.Unmarshal([]byte(dataMapJson), dataMap)
+	if err != nil {
+		return
+	}
+
+	if !dataMap.ReadyToDelete(nodeUUID) {
+		logging.Verbosef("ConfigMap [%s] cannot be deleted in current goroutine..", VIPCMName)
+		return
+	}
+
+	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		toDeleteCM := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",

@@ -93,6 +93,9 @@ github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/magiconair/properties v1.8.1
 github.com/magiconair/properties
+# github.com/matoous/go-nanoid/v2 v2.0.0
+## explicit
+github.com/matoous/go-nanoid/v2
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/mitchellh/mapstructure v1.1.2
