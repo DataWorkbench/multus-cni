@@ -58,11 +58,22 @@ rules:
   - apiGroups:
       - ""
     resources:
+      - configmaps
+    verbs:
+      - list
+      - watch
+      - get
+      - update
+      - patch
+      - create
+      - delete
+  - apiGroups:
+      - ""
+    resources:
       - pods
       - pods/status
       - nodes
       - namespaces
-      - configmaps
     verbs:
       - list
       - watch
