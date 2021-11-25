@@ -38,6 +38,7 @@ type Allocator struct {
 	validNicCount int32
 	deletingNic   map[string]bool
 	vipJobs       map[string]*VipJobInfo
+	StopCh        <-chan struct{}
 }
 
 func (a *Allocator) addNicStatus(nic *rpc.HostNic, info *rpc.PodInfo) error {
@@ -162,7 +163,7 @@ func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd, namespace string) error 
 }
 
 func (a *Allocator) TryToFreeVxNetVIPs(vxNetID, namespace string) {
-	err := TryFreeVIP(vxNetID, namespace)
+	err := TryFreeVIP(vxNetID, namespace, a.StopCh)
 	if err != nil {
 		_ = logging.Errorf("Try to free VIP failed, err: %v", err)
 	}
@@ -256,10 +257,11 @@ func (a *Allocator) CheckVipJobs() {
 	defer a.vipLock.Unlock()
 
 	if len(a.vipJobs) <= 0 {
-		logging.Verbosef("vipJobs is empty, skip..")
+		logging.Debugf("vipJobs is empty, skip..")
 		return
 	}
 
+	logging.Verbosef("period check VIP jobs")
 	currVipJobIDs := []string{}
 	for _jobID, _ := range a.vipJobs {
 		currVipJobIDs = append(currVipJobIDs, _jobID)
@@ -409,6 +411,7 @@ func (a *Allocator) SyncHostNic(node bool) {
 }
 
 func (a *Allocator) Start(stopCh <-chan struct{}) error {
+	a.StopCh = stopCh
 	go a.run(stopCh)
 	return nil
 }
@@ -425,10 +428,9 @@ func (a *Allocator) run(stopCh <-chan struct{}) {
 		case <-jobTimer:
 			a.SyncHostNic(false)
 		case <-nodeTimer:
-			logging.Verbosef("period node sync")
+			logging.Debugf("period node sync")
 			a.SyncHostNic(true)
 		case <-vipJobTimer:
-			logging.Verbosef("period check VIP jobs")
 			a.CheckVipJobs()
 		}
 	}
