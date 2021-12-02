@@ -163,7 +163,7 @@ spec:
       containers:
         - name: kube-multus
           image: dataworkbench/nic-manager:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           command: [ "/usr/src/multus-cni/bin/multus-daemon" ]
           args:
             - "-cni-version=0.3.1"
@@ -198,7 +198,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
           image: dataworkbench/nic-manager:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 61678
               name: metrics
@@ -230,7 +230,7 @@ spec:
           command:
             - /usr/src/multus-cni/bin/multus-nic-device-plugin
           image: dataworkbench/nic-manager:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 61679
               name: metrics
