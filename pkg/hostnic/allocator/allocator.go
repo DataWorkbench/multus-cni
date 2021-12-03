@@ -101,7 +101,10 @@ func (a *Allocator) getVxnets(vxnet string) (*rpc.VxNet, error) {
 	if err != nil {
 		return nil, err
 	}
-	logging.Verbosef("get vxnet %s", vxnet)
+	logging.Verbosef("get vxnet %s", result)
+	if result[vxnet] == nil {
+		return nil, logging.Errorf("vxnet [%s] not found", vxnet)
+	}
 	return result[vxnet], nil
 }
 
