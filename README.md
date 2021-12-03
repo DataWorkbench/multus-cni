@@ -1,51 +1,32 @@
-# Multus-CNI
+## 使用说明
 
-![multus-cni Logo](https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/images/Multus.png)
 
-[![Build](https://github.com/k8snetworkplumbingwg/multus-cni/actions/workflows/build.yml/badge.svg)](https://github.com/k8snetworkplumbingwg/multus-cni/actions/workflows/build.yml)[![Test](https://github.com/k8snetworkplumbingwg/multus-cni/actions/workflows/test.yml/badge.svg)](https://github.com/k8snetworkplumbingwg/multus-cni/actions/workflows/test.yml)[![Go Report Card](https://goreportcard.com/badge/github.com/k8snetworkplumbingwg/multus-cni)](https://goreportcard.com/report/github.com/k8snetworkplumbingwg/multus-cni)[![Coverage Status](https://coveralls.io/repos/github/k8snetworkplumbingwg/multus-cni/badge.svg)](https://coveralls.io/github/k8snetworkplumbingwg/multus-cni)
+1. `multus-cni`需要有在云平台上操作网络的权限，所以首先需要增加 IaaS 的 sdk 配置文件，并将其存储中kube-system中的`qcsecret`中。
 
-Multus CNI enables attaching multiple network interfaces to pods in Kubernetes.
+    ```bash
+    cat >config.yaml <<EOF
+    qy_access_key_id: "Your access key id"
+    qy_secret_access_key: "Your secret access key"
+    # your instance zone
+    zone: "pek3a"
+    EOF
 
-## How it works
+    ## 创建Secret
+    kubectl create secret generic qcsecret --from-file=./config.yaml -n kube-system
+    ```
+   access_key 以及 secret_access_key 可以登录青云控制台，在 **API 秘钥**菜单下申请。  请参考https://docs.qingcloud.com/product/api/common/overview.html。默认是配置文件指向青云公网api server，如果是私有云，请按照下方示例配置更多的参数：
+    ```
+    qy_access_key_id: 'ACCESS_KEY_ID'
+    qy_secret_access_key: 'SECRET_ACCESS_KEY'
 
-Multus CNI is a container network interface (CNI) plugin for Kubernetes that enables attaching multiple network interfaces to pods. Typically, in Kubernetes each pod only has one network interface (apart from a loopback) -- with Multus you can create a multi-homed pod that has multiple interfaces. This is accomplished by Multus acting as a "meta-plugin", a CNI plugin that can call multiple other CNI plugins.
-
-Multus CNI follows the [Kubernetes Network Custom Resource Definition De-facto Standard](https://docs.google.com/document/d/1Ny03h6IDVy_e_vmElOqR7UdTPAG_RNydhVE1Kx54kFQ/edit) to provide a standardized method by which to specify the configurations for additional network interfaces. This standard is put forward by the Kubernetes [Network Plumbing Working Group](https://docs.google.com/document/d/1oE93V3SgOGWJ4O1zeD1UmpeToa0ZiiO6LqRAmZBPFWM/edit).
-
-Multus is one of the projects in the [Baremetal Container Experience kit](https://networkbuilders.intel.com/network-technologies/container-experience-kits)
-
-### Multi-Homed pod
-
-Here's an illustration of the network interfaces attached to a pod, as provisioned by Multus CNI. The diagram shows the pod with three interfaces: `eth0`, `net0` and `net1`. `eth0` connects kubernetes cluster network to connect with kubernetes server/services (e.g. kubernetes api-server, kubelet and so on). `net0` and `net1` are additional network attachments and connect to other networks by using [other CNI plugins](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/) (e.g. vlan/vxlan/ptp).
-
-![multus-pod-image](docs/images/multus-pod-image.svg)
-
-## Quickstart Installation Guide
-
-The quickstart installation method for Multus requires that you have first installed a Kubernetes CNI plugin to serve as your pod-to-pod network, which we refer to as your "default network" (a network interface that every pod will be created with). Each network attachment created by Multus will be in addition to this default network interface. For more detail on installing a default network CNI plugins, refer to our [quick-start guide](docs/quickstart.md).
-
-Clone this GitHub repository, we'll apply a daemonset which installs Multus using to `kubectl` from this repo. From the root directory of the clone, apply the daemonset YAML file:
-
-```
-$ cat ./deployments/multus-daemonset-thick-plugin.yml | kubectl apply -f -
-```
-
-This will configure your systems to be ready to use Multus CNI, but, to get started with adding additional interfaces to your pods, refer to our complete [quick-start guide](docs/quickstart.md)
-
-## Additional installation Options
-
-- Install via daemonset using the quick-start guide, above.
-- Download binaries from [release page](https://github.com/k8snetworkplumbingwg/multus-cni/releases)
-- By Docker image from [Docker Hub](https://hub.docker.com/r/nfvpe/multus/tags/)
-- Or, roll-your-own and build from source
-  - See [Development](docs/development.md)
-
-## Comprehensive Documentation
-
-- [How to use](docs/how-to-use.md)
-- [Configuration](docs/configuration.md)
-- [Development](docs/development.md)
-
-## Contact Us
-
-For any questions about Multus CNI, feel free to ask a question in #general in the [NPWG Slack](https://npwg-team.slack.com/), or open up a GitHub issue. Request an invite to NPWG slack [here](https://intel-corp.herokuapp.com/).
+    host: 'api.xxxxx.com'
+    port: 443
+    protocol: 'https'
+    uri: '/iaas'
+    connection_retries: 3
+    ```
+   上述配置中的host可以配置为api.ks.qingcloud.com，通过内网访问青云api服务
+2. 安装yaml文件，等待所有节点的multus起来即可
+    ```bash
+    kubectl apply -f https://raw.githubusercontent.com/DataWorkbench/multus-cni/dev/deployments/multus-daemonset-qke.yml
+    ```
