@@ -155,6 +155,8 @@ spec:
         app: multus
         name: multus
     spec:
+      nodeSelector:
+        node-role.kubernetes.io/worker:
       hostNetwork: true
       tolerations:
         - operator: Exists

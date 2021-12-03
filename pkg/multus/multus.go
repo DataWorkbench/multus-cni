@@ -58,10 +58,10 @@ var (
 )
 
 var (
-	pollDuration = 1000 * time.Millisecond
-	pollTimeout  = 45 * time.Second
+	pollDuration          = 1000 * time.Millisecond
+	pollTimeout           = 45 * time.Second
 	configmapPollDuration = 1 * time.Second
-	configmapPollTimeout = 30 * time.Second
+	configmapPollTimeout  = 30 * time.Second
 )
 
 //PrintVersionString ...
@@ -572,11 +572,11 @@ func tryLoadConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v
 	var err error
 	waitErr := wait.PollImmediate(configmapPollDuration, configmapPollTimeout, func() (bool, error) {
 		configmap, err = kubeClient.GetConfigMap(configmapName, configmapNamespace)
-		if err != nil{
+		if err != nil {
 			return true, err
-		}else {
+		} else {
 			logging.Debugf("config map %s [namespace %s]: %v", configmap, configmapNamespace, configmap)
-			if configmap != nil{
+			if configmap != nil {
 				dataMapJson := configmap.Data[constants.VIPConfName]
 				logging.Debugf("config map %s [namespace %s] %s: %s", configmap, configmapNamespace, constants.VIPConfName, dataMapJson)
 				if dataMapJson == "" {
