@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/utils"
 
 	"k8s.io/client-go/util/retry"
 	"net"
@@ -631,7 +632,7 @@ func (c *ClientInfo) GetConfigMap(name, namespace string) (*v1.ConfigMap, error)
 
 func (c *ClientInfo) AllocatePodIP(name, namespace, podName string) (string, error) {
 	var allocIP string
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+	err := retry.RetryOnConflict(utils.RetryConf, func() error {
 		configMap, err := c.GetConfigMap(name, namespace)
 		if err != nil {
 			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
@@ -668,7 +669,7 @@ func (c *ClientInfo) AllocatePodIP(name, namespace, podName string) (string, err
 
 // Detach Pod Ref VIP info
 func (c *ClientInfo) ReleasePodIP(name, namespace, podName string) error {
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+	return retry.RetryOnConflict(utils.RetryConf, func() error {
 		configMap, err := c.GetConfigMap(name, namespace)
 		if err != nil {
 			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",

@@ -28,6 +28,7 @@ const (
 	VIPConfName  = "VIPAllocator.json"
 	MaxRetry     = 3
 	VIPNumLimit  = 255
+	RetrySteps   = 15
 
 	HostNicPassThrough = "passthrough"
 	HostNicVeth        = "veth"

@@ -1,10 +1,20 @@
 package utils
 
 import (
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"math/big"
 	"net"
+	"time"
 )
+
+var RetryConf = wait.Backoff{
+	Steps:    constants.RetrySteps,
+	Duration: 10 * time.Millisecond,
+	Factor:   1.0,
+	Jitter:   0.1,
+}
 
 func IPRangeCount(from, to string) int {
 	startIP := cnet.ParseIP(from)

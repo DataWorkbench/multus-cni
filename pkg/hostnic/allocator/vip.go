@@ -6,6 +6,7 @@ import (
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/utils"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"github.com/matoous/go-nanoid/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -165,7 +166,7 @@ func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
 		VIPInfoMap[*vip.VIPAddr] = vipItem
 	}
 
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+	return retry.RetryOnConflict(utils.RetryConf, func() error {
 		VIPCMName := CreateVIPCMName(vxNetID)
 		configMap, err := getConfigMap(VIPCMName, namespace)
 		if err != nil {
@@ -198,7 +199,7 @@ func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
 }
 
 func TryFreeVIP(vxNetID, namespace string, stopCh <-chan struct{}) error {
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+	return retry.RetryOnConflict(utils.RetryConf, func() error {
 		VIPCMName := CreateVIPCMName(vxNetID)
 		configMap, err := getConfigMap(VIPCMName, namespace)
 		if err != nil {
@@ -219,7 +220,7 @@ func TryFreeVIP(vxNetID, namespace string, stopCh <-chan struct{}) error {
 
 		podCount := dataMap.GetPodCount()
 		if podCount > 0 {
-			logging.Verbosef("[Refuse to release VIP]podCount [%d] ConfigMap VIPDetail [%v]", podCount, dataMap)
+			logging.Verbosef("[Refuse to release VIP] podCount [%d] ConfigMap VIPDetail [%v]", podCount, dataMap)
 			logging.Verbosef("There are [%d] pod attached", podCount)
 			return nil
 		}
@@ -273,7 +274,7 @@ func ClearVIPConf(vxNetID, cmName, namespace, nodeUUID string, VIPs []string, st
 		return
 	}
 
-	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+	err = retry.RetryOnConflict(utils.RetryConf, func() error {
 		toDeleteCM := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",

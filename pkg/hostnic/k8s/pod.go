@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/rpc"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -109,7 +110,7 @@ func (k *Helper) getNodeVxnetUsage(vxnets []string) (error, map[string]int, bool
 }
 
 func (k *Helper) updateNodeVxnet(vxnet string) error {
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+	return retry.RetryOnConflict(utils.RetryConf, func() error {
 		node := &corev1.Node{}
 		err := k.Client.Get(context.Background(), client.ObjectKey{Name: k.NodeName}, node)
 		if err != nil {
