@@ -219,9 +219,10 @@ func TryFreeVIP(vxNetID, namespace string, stopCh <-chan struct{}) error {
 		}
 
 		podCount := dataMap.GetPodCount()
+		logging.Verbosef("There are [%d] pods attached", podCount)
+		logging.Verbosef("DataMapJson: [%s]", dataMapJson)
 		if podCount > 0 {
-			logging.Verbosef("[Refuse to release VIP] podCount [%d] ConfigMap VIPDetail [%v]", podCount, dataMap)
-			logging.Verbosef("There are [%d] pod attached", podCount)
+			logging.Verbosef("[Refuse to release VIP] podCount [%d] ConfigMap VIPDetail [%s]", podCount, dataMapJson)
 			return nil
 		}
 
