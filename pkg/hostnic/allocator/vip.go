@@ -1,7 +1,6 @@
 package allocator
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
@@ -13,7 +12,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
 )
@@ -124,7 +122,7 @@ func PrintErrReason(err error, desc string) {
 func GetVIPConfForVxNet(vxNetID, namespace, IPStart, IPEnd string) (map[string]string, bool, error) {
 	var needToCreateVIP bool
 	VIPCMName := CreateVIPCMName(vxNetID)
-	configMap, err := getConfigMap(VIPCMName, namespace)
+	configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 	if err == nil {
 		return configMap.Data, needToCreateVIP, nil
 	}
@@ -140,7 +138,7 @@ func GetVIPConfForVxNet(vxNetID, namespace, IPStart, IPEnd string) (map[string]s
 		}
 	}
 
-	configMap, err = getConfigMap(VIPCMName, namespace)
+	configMap, err = k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 	if err != nil {
 		_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] after creating",
 			VIPCMName, namespace)
@@ -168,7 +166,7 @@ func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
 
 	return retry.RetryOnConflict(utils.RetryConf, func() error {
 		VIPCMName := CreateVIPCMName(vxNetID)
-		configMap, err := getConfigMap(VIPCMName, namespace)
+		configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 		if err != nil {
 			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for initializing",
 				VIPCMName, namespace)
@@ -194,14 +192,15 @@ func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
 			return err
 		}
 		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
-		return k8s.K8sHelper.Client.Update(context.Background(), configMap)
+		_, err = k8s.K8sHelper.Client.UpdateConfigMap(namespace, configMap)
+		return err
 	})
 }
 
 func TryFreeVIP(vxNetID, namespace string, stopCh <-chan struct{}) error {
 	return retry.RetryOnConflict(utils.RetryConf, func() error {
 		VIPCMName := CreateVIPCMName(vxNetID)
-		configMap, err := getConfigMap(VIPCMName, namespace)
+		configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 		if err != nil {
 			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
 				VIPCMName, namespace)
@@ -239,7 +238,7 @@ func TryFreeVIP(vxNetID, namespace string, stopCh <-chan struct{}) error {
 			return err
 		}
 		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
-		err = k8s.K8sHelper.Client.Update(context.Background(), configMap)
+		_, err = k8s.K8sHelper.Client.UpdateConfigMap(namespace, configMap)
 		if err == nil {
 			logging.Debugf("set out to delete ConfigMap [%s], Namespace [%s]", VIPCMName, namespace)
 			go ClearVIPConf(vxNetID, VIPCMName, namespace, nodeUUID, ids, stopCh)
@@ -256,7 +255,7 @@ func ClearVIPConf(vxNetID, cmName, namespace, nodeUUID string, VIPs []string, st
 		logging.Verbosef("receive stop signal, try to clear VIPs directly")
 	}
 	VIPCMName := CreateVIPCMName(vxNetID)
-	configMap, err := getConfigMap(VIPCMName, namespace)
+	configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 	if err != nil {
 		_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
 			VIPCMName, namespace)
@@ -276,17 +275,7 @@ func ClearVIPConf(vxNetID, cmName, namespace, nodeUUID string, VIPs []string, st
 	}
 
 	err = retry.RetryOnConflict(utils.RetryConf, func() error {
-		toDeleteCM := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      cmName,
-				Namespace: namespace,
-			},
-		}
-		return k8s.K8sHelper.Client.Delete(context.Background(), toDeleteCM)
+		return k8s.K8sHelper.Client.DeleteConfigMap(namespace, cmName)
 	})
 	if err != nil {
 		_ = logging.Errorf("delete ConfigMap [%s], Namespace [%s] failed, err: %v", cmName, namespace, err)
@@ -304,20 +293,6 @@ func ClearVIPConf(vxNetID, cmName, namespace, nodeUUID string, VIPs []string, st
 
 		_ = logging.Errorf("[%d] Delete VIPs %s failed, err: %s", i, VIPs, err)
 	}
-}
-
-func getConfigMap(name, namespace string) (*corev1.ConfigMap, error) {
-	configMap := &corev1.ConfigMap{}
-
-	err := k8s.K8sHelper.Client.Get(context.Background(), client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}, configMap)
-
-	if err != nil {
-		return nil, err
-	}
-	return configMap, nil
 }
 
 func createConfigMap(name, namespace, IPStart, IPEnd string) error {
@@ -338,7 +313,7 @@ func createConfigMap(name, namespace, IPStart, IPEnd string) error {
 		},
 		Data: dataMap,
 	}
-	err := k8s.K8sHelper.Client.Create(context.Background(), newConfigMap)
+	_, err := k8s.K8sHelper.Client.CreateConfigMap(namespace, newConfigMap)
 	if err != nil {
 		PrintErrReason(err, "Create ConfigMap failed")
 		if k8serrors.IsAlreadyExists(err) || k8serrors.IsConflict(err) {

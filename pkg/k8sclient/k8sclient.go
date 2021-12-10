@@ -80,6 +80,11 @@ func (c *ClientInfo) GetPod(namespace, name string) (*v1.Pod, error) {
 	return c.Client.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
+// ListPods
+func (c *ClientInfo) ListPods(namespace string) (*v1.PodList, error) {
+	return c.Client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+}
+
 // DeletePod deletes a pod from kubernetes
 func (c *ClientInfo) DeletePod(namespace, name string) error {
 	return c.Client.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
@@ -628,6 +633,18 @@ func (c *ClientInfo) GetConfigMap(name, namespace string) (*v1.ConfigMap, error)
 		return nil, err
 	}
 	return configMap, nil
+}
+
+func (c *ClientInfo) CreateConfigMap(namespace string, configMap *v1.ConfigMap) (*v1.ConfigMap, error) {
+	return c.Client.CoreV1().ConfigMaps(namespace).Create(context.TODO(), configMap, metav1.CreateOptions{})
+}
+
+func (c *ClientInfo) UpdateConfigMap(namespace string, newConfigMap *v1.ConfigMap) (*v1.ConfigMap, error) {
+	return c.Client.CoreV1().ConfigMaps(namespace).Update(context.TODO(), newConfigMap, metav1.UpdateOptions{})
+}
+
+func (c *ClientInfo) DeleteConfigMap(namespace, name string) error {
+	return c.Client.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
 func (c *ClientInfo) AllocatePodIP(name, namespace, podName string) (string, error) {

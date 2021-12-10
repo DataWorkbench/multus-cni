@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/k8sclient"
 	"os"
 
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
@@ -9,13 +10,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 type Helper struct {
 	NodeName string
-	Client   client.Client
+	Client   *k8sclient.ClientInfo
 
 	PodEvent record.EventRecorder
 	Mgr      manager.Manager
@@ -46,9 +46,14 @@ func SetupK8sHelper() {
 		logging.Panicf("node name should not be empty")
 	}
 
+	client, err := k8sclient.GetK8sClient("", nil)
+	if err != nil {
+		logging.Panicf("failed to get k8s client: %v", err)
+	}
+
 	K8sHelper = &Helper{
 		NodeName: nodeName,
-		Client:   mgr.GetClient(),
+		Client:   client,
 		PodEvent: mgr.GetEventRecorderFor("hostnic"),
 		Mgr:      mgr,
 	}
