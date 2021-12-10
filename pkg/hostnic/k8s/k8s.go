@@ -30,7 +30,7 @@ func init() {
 	_ = corev1.AddToScheme(scheme)
 }
 
-func SetupK8sHelper() {
+func SetupK8sHelper(kubeConfigFilePath string) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		logging.Panicf("failed to get k8s config: %v", err)
@@ -46,7 +46,7 @@ func SetupK8sHelper() {
 		logging.Panicf("node name should not be empty")
 	}
 
-	client, err := k8sclient.GetK8sClient("", nil)
+	client, err := k8sclient.GetK8sClient(kubeConfigFilePath, nil)
 	if err != nil {
 		logging.Panicf("failed to get k8s client: %v", err)
 	}

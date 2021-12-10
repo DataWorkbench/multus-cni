@@ -56,6 +56,7 @@ func main() {
 	logToStdErr := flag.Bool(multusLogToStdErr, defaultMultusLogToStdErr, "If the multus logs are also to be echoed to stderr.")
 	logLevel := flag.String(multusLogLevel, defaultMultusLogLevel, "One of: debug/verbose/error/panic. Used only with --multus-conf-file=auto.")
 	logFile := flag.String(multusLogFile, defaultMultusLogFile, "Path where to multus will log. Used only with --multus-conf-file=auto.")
+	multusKubeconfig := flag.String(multusKubeconfigPath, defaultMultusKubeconfigPath, "The path to the kubeconfig")
 	flag.BoolVar(&versionOpt, "version", false, "Show application version")
 	flag.BoolVar(&versionOpt, "v", false, "Show application version")
 	flag.Parse()
@@ -102,7 +103,8 @@ func main() {
 	qcclient.SetupQingCloudClient(qcclient.Options{
 		Tag: config.Pool.Tag,
 	})
-	k8s.SetupK8sHelper()
+
+	k8s.SetupK8sHelper(*multusKubeconfig)
 	allocator.SetupAllocator(config.Pool)
 
 	// add daemon
