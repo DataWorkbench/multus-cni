@@ -1,4 +1,4 @@
-package allocator
+package vip
 
 import (
 	"encoding/json"
@@ -325,4 +325,71 @@ func createConfigMap(name, namespace, IPStart, IPEnd string) error {
 	}
 
 	return nil
+}
+
+func AllocatePodIP(name, namespace, podName string) (string, error) {
+	var allocIP string
+	err := retry.RetryOnConflict(utils.RetryConf, func() error {
+		configMap, err := k8s.K8sHelper.Client.GetConfigMap(name, namespace)
+		if err != nil {
+			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
+				name, namespace)
+			return err
+		}
+
+		dataMapJson := configMap.Data[constants.VIPConfName]
+		if dataMapJson == "" {
+			err = logging.Errorf("configMap not initialized")
+			return err
+		}
+		dataMap := &VIPAllocMap{}
+		err = json.Unmarshal([]byte(dataMapJson), dataMap)
+		if err != nil {
+			_ = logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
+			return err
+		}
+		allocIP, err = dataMap.AddRefPodVIPInfo(podName)
+		if err != nil {
+			return err
+		}
+		newDataMapJson, err := json.Marshal(dataMap)
+		if err != nil {
+			_ = logging.Errorf("failed to Get Data Json after adding PodName, err: %v", err)
+			return err
+		}
+		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
+		configMap, err = k8s.K8sHelper.Client.UpdateConfigMap(namespace, configMap)
+		return err
+	})
+	return allocIP, err
+}
+
+// Detach Pod Ref VIP info
+func ReleasePodIP(name, namespace, podName string) error {
+	return retry.RetryOnConflict(utils.RetryConf, func() error {
+		configMap, err := k8s.K8sHelper.Client.GetConfigMap(name, namespace)
+		if err != nil {
+			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
+				name, namespace)
+			return err
+		}
+
+		dataMapJson := configMap.Data[constants.VIPConfName]
+		dataMap := &VIPAllocMap{}
+		err = json.Unmarshal([]byte(dataMapJson), dataMap)
+		if err != nil {
+			_ = logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
+			return err
+		}
+
+		dataMap.RemoveRefPodVIPInfo(podName)
+		newDataMapJson, err := json.Marshal(dataMap)
+		if err != nil {
+			_ = logging.Errorf("failed to Get Data Json after removing PodName, err: %v", err)
+			return err
+		}
+		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
+		configMap, err = k8s.K8sHelper.Client.UpdateConfigMap(namespace, configMap)
+		return err
+	})
 }

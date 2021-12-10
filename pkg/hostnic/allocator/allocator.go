@@ -2,6 +2,7 @@ package allocator
 
 import (
 	"encoding/json"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/vip"
 	"os"
 	"path"
 	"sync"
@@ -166,7 +167,7 @@ func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd, namespace string) error 
 }
 
 func (a *Allocator) TryToFreeVxNetVIPs(vxNetID, namespace string) {
-	err := TryFreeVIP(vxNetID, namespace, a.StopCh)
+	err := vip.TryFreeVIP(vxNetID, namespace, a.StopCh)
 	if err != nil {
 		_ = logging.Errorf("Try to free VIP failed, err: %v", err)
 	}
@@ -277,7 +278,7 @@ func (a *Allocator) CheckVipJobs() {
 	for _, _succJob := range succJobs {
 		jobInfo := a.vipJobs[_succJob]
 		logging.Verbosef("Job [%s] succeed, Init vipDetailInfo", _succJob)
-		err = InitVIP(jobInfo.VxNetID, jobInfo.Namespace, jobInfo.VIPs)
+		err = vip.InitVIP(jobInfo.VxNetID, jobInfo.Namespace, jobInfo.VIPs)
 		if err != nil {
 			_ = logging.Errorf("init configMap failed with Info [%v]", jobInfo)
 		} else {

@@ -18,8 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/DataWorkbench/multus-cni/pkg/hostnic/allocator"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/vip"
 	"io/ioutil"
 	"net"
 	"os"
@@ -582,7 +582,7 @@ func tryLoadConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v
 				if dataMapJson == "" {
 					return false, err
 				}
-				dataMap := &allocator.VIPAllocMap{}
+				dataMap := &vip.VIPAllocMap{}
 				err = json.Unmarshal([]byte(dataMapJson), dataMap)
 				if err != nil {
 					logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
@@ -675,7 +675,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 			if err != nil {
 				return nil, cmdErr(k8sArgs, "error try load configmap: %v", err)
 			}
-			podIP, err := kubeClient.AllocatePodIP(configmap.Name, configmap.Namespace, pod.Name)
+			podIP, err := vip.AllocatePodIP(configmap.Name, configmap.Namespace, pod.Name)
 			if err != nil {
 				return nil, cmdErr(k8sArgs, "error attach pod vip network status: %v", err)
 			}
@@ -923,7 +923,7 @@ func CmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) er
 			if err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
-			if err := kubeClient.ReleasePodIP(configmap.Name, configmap.Namespace, pod.Name); err != nil {
+			if err := vip.ReleasePodIP(configmap.Name, configmap.Namespace, pod.Name); err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
 			if err := DelNetworkInterface(k8sArgs); err != nil {
