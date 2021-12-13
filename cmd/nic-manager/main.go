@@ -104,7 +104,8 @@ func main() {
 		Tag: config.Pool.Tag,
 	})
 
-	k8s.SetupK8sHelper(*multusKubeconfig)
+	kubeConfigPath := "/host/" + *multusKubeconfig
+	k8s.SetupK8sHelper(kubeConfigPath)
 	allocator.SetupAllocator(config.Pool)
 
 	// add daemon
