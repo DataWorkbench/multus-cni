@@ -28,5 +28,5 @@
    上述配置中的host可以配置为api.ks.qingcloud.com，通过内网访问青云api服务
 2. 安装yaml文件，等待所有节点的multus起来即可
     ```bash
-    kubectl apply -f https://raw.githubusercontent.com/DataWorkbench/multus-cni/dev/deployments/multus-daemonset-qke.yml
+    kubectl apply -f https://raw.githubusercontent.com/DataWorkbench/multus-cni/dev/deployments/multus-daemonset-qke.yml --validate=false
     ```
