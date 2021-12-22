@@ -44,7 +44,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 
 	//wait for nic attach
 	var link netlink.Link
-	try := 30
+	try := 300
 	for i := 0; i < try; i++ {
 		link, err = netutils.LinkByMacAddr(r.Nic.HardwareAddr)
 		if err != nil && err != constants.ErrNicNotFound {
