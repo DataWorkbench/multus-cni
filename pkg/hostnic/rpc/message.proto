@@ -1,6 +1,7 @@
 syntax = "proto3";
 
-package rpc;
+//package rpc;
+option go_package = "./;rpc";
 
 // The service definition.
 service CNIBackend {
@@ -54,8 +55,9 @@ message PodInfo {
 message NICMMessage {
   PodInfo Args = 1;
   HostNic Nic = 2;
-  string IPStart = 3;
-  string IPEnd = 4;
+  string NAD = 3;
+  string IPStart = 4;
+  string IPEnd = 5;
 }
 
 message NicStatMessage {

@@ -32,7 +32,7 @@ func NewCNIBackendClient(cc grpc.ClientConnInterface) CNIBackendClient {
 
 func (c *cNIBackendClient) AddNetwork(ctx context.Context, in *NICMMessage, opts ...grpc.CallOption) (*NICMMessage, error) {
 	out := new(NICMMessage)
-	err := c.cc.Invoke(ctx, "/rpc.CNIBackend/AddNetwork", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/CNIBackend/AddNetwork", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (c *cNIBackendClient) AddNetwork(ctx context.Context, in *NICMMessage, opts
 
 func (c *cNIBackendClient) DelNetwork(ctx context.Context, in *NICMMessage, opts ...grpc.CallOption) (*NICMMessage, error) {
 	out := new(NICMMessage)
-	err := c.cc.Invoke(ctx, "/rpc.CNIBackend/DelNetwork", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/CNIBackend/DelNetwork", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (c *cNIBackendClient) DelNetwork(ctx context.Context, in *NICMMessage, opts
 
 func (c *cNIBackendClient) GetNicStat(ctx context.Context, in *NicStatMessage, opts ...grpc.CallOption) (*NicStatMessage, error) {
 	out := new(NicStatMessage)
-	err := c.cc.Invoke(ctx, "/rpc.CNIBackend/GetNicStat", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/CNIBackend/GetNicStat", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func _CNIBackend_AddNetwork_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpc.CNIBackend/AddNetwork",
+		FullMethod: "/CNIBackend/AddNetwork",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CNIBackendServer).AddNetwork(ctx, req.(*NICMMessage))
@@ -121,7 +121,7 @@ func _CNIBackend_DelNetwork_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpc.CNIBackend/DelNetwork",
+		FullMethod: "/CNIBackend/DelNetwork",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CNIBackendServer).DelNetwork(ctx, req.(*NICMMessage))
@@ -139,7 +139,7 @@ func _CNIBackend_GetNicStat_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/rpc.CNIBackend/GetNicStat",
+		FullMethod: "/CNIBackend/GetNicStat",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CNIBackendServer).GetNicStat(ctx, req.(*NicStatMessage))
@@ -148,7 +148,7 @@ func _CNIBackend_GetNicStat_Handler(srv interface{}, ctx context.Context, dec fu
 }
 
 var _CNIBackend_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "rpc.CNIBackend",
+	ServiceName: "CNIBackend",
 	HandlerType: (*CNIBackendServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
