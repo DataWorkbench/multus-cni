@@ -111,17 +111,17 @@ func (v *VIPAllocMap) RemoveRefPodVIPInfo(podName string) {
 	v.LastUpdateTime = time.Now().Unix()
 }
 
-func CreateVIPCMName(vxNetID string) string {
-	return "vip-" + strings.ToLower(vxNetID)
+func CreateVIPCMName(NADName string) string {
+	return "vip-" + strings.ToLower(NADName)
 }
 
 func PrintErrReason(err error, desc string) {
 	logging.Verbosef("%s, Error Reason: [%s]", desc, string(k8serrors.ReasonForError(err)))
 }
 
-func GetVIPConfForVxNet(vxNetID, namespace, IPStart, IPEnd string) (map[string]string, bool, error) {
+func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd string) (map[string]string, bool, error) {
 	var needToCreateVIP bool
-	VIPCMName := CreateVIPCMName(vxNetID)
+	VIPCMName := CreateVIPCMName(NADName)
 	configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 	if err == nil {
 		return configMap.Data, needToCreateVIP, nil
@@ -148,8 +148,8 @@ func GetVIPConfForVxNet(vxNetID, namespace, IPStart, IPEnd string) (map[string]s
 	return configMap.Data, needToCreateVIP, nil
 }
 
-func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
-	logging.Verbosef("Set out to init VIPs, vxNetId [%s], namespace [%s], VIPs %v", vxNetID, namespace, VIPs)
+func InitVIP(vxNetID, namespace, NADName string, VIPs []string) (err error) {
+	logging.Verbosef("Set out to init VIPs, vxNetId [%s], namespace [%s], NAD [%s], VIPs %v", vxNetID, namespace, NADName, VIPs)
 	output, err := qcclient.QClient.DescribeVIPs(vxNetID, VIPs)
 	if err != nil {
 		_ = logging.Errorf("Query DescribeVIPs [%v] failed, err: %v", VIPs, err)
@@ -165,7 +165,7 @@ func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
 	}
 
 	return retry.RetryOnConflict(utils.RetryConf, func() error {
-		VIPCMName := CreateVIPCMName(vxNetID)
+		VIPCMName := CreateVIPCMName(NADName)
 		configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 		if err != nil {
 			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for initializing",
@@ -197,9 +197,9 @@ func InitVIP(vxNetID, namespace string, VIPs []string) (err error) {
 	})
 }
 
-func TryFreeVIP(vxNetID, namespace string, stopCh <-chan struct{}) error {
+func TryFreeVIP(NADName, namespace string, stopCh <-chan struct{}) error {
 	return retry.RetryOnConflict(utils.RetryConf, func() error {
-		VIPCMName := CreateVIPCMName(vxNetID)
+		VIPCMName := CreateVIPCMName(NADName)
 		configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 		if err != nil {
 			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
@@ -241,20 +241,20 @@ func TryFreeVIP(vxNetID, namespace string, stopCh <-chan struct{}) error {
 		_, err = k8s.K8sHelper.Client.UpdateConfigMap(namespace, configMap)
 		if err == nil {
 			logging.Debugf("set out to delete ConfigMap [%s], Namespace [%s]", VIPCMName, namespace)
-			go ClearVIPConf(vxNetID, VIPCMName, namespace, nodeUUID, ids, stopCh)
+			go ClearVIPConf(NADName, VIPCMName, namespace, nodeUUID, ids, stopCh)
 		}
 		return err
 	})
 }
 
-func ClearVIPConf(vxNetID, cmName, namespace, nodeUUID string, VIPs []string, stopCh <-chan struct{}) {
+func ClearVIPConf(NADName, cmName, namespace, nodeUUID string, VIPs []string, stopCh <-chan struct{}) {
 	delDelay := time.NewTimer(time.Duration(30) * time.Second)
 	select {
 	case <-delDelay.C:
 	case <-stopCh:
 		logging.Verbosef("receive stop signal, try to clear VIPs directly")
 	}
-	VIPCMName := CreateVIPCMName(vxNetID)
+	VIPCMName := CreateVIPCMName(NADName)
 	configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 	if err != nil {
 		_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",

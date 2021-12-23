@@ -79,9 +79,9 @@ func (s *NICMServer) AddNetwork(context context.Context, in *rpc.NICMMessage) (*
 		logging.Verbosef("handle server add reply (%v), err %v", in.Nic, err)
 	}()
 
-	_, needToCreateVIP, err := vip.GetVIPConfForVxNet(info.VxNet, in.Args.Namespace, in.IPStart, in.IPEnd)
+	_, needToCreateVIP, err := vip.GetVIPConfForVxNet(in.GetNAD(), in.Args.Namespace, in.IPStart, in.IPEnd)
 	if needToCreateVIP {
-		err = allocator.Alloc.CreateVIPs(info.VxNet, in.IPStart, in.IPEnd, in.Args.Namespace)
+		err = allocator.Alloc.CreateVIPs(info.VxNet, in.IPStart, in.IPEnd, in.Args.Namespace, in.GetNAD())
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +112,7 @@ func (s *NICMServer) DelNetwork(context context.Context, in *rpc.NICMMessage) (*
 
 	in.Nic, err = allocator.Alloc.FreeHostNic(in.Args, podInfo.VxNet)
 
-	allocator.Alloc.TryToFreeVxNetVIPs(podInfo.VxNet, in.Args.Namespace)
+	allocator.Alloc.TryToFreeVxNetVIPs(in.GetNAD(), in.Args.Namespace)
 
 	return in, nil
 }

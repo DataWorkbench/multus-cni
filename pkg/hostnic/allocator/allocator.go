@@ -28,6 +28,7 @@ type VipJobInfo struct {
 	IPEnd     string
 	Namespace string
 	VIPs      []string
+	NADName   string
 }
 
 type Allocator struct {
@@ -145,7 +146,7 @@ func (a *Allocator) createAndAttachNewNic(args *rpc.PodInfo) (*rpc.HostNic, erro
 	return nics[0], nil
 }
 
-func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd, namespace string) error {
+func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd, namespace, NADName string) error {
 	jobID, vipIDs, err := qcclient.QClient.CreateVIPs(vxNetID, IPStart, IPEnd)
 	if err != nil {
 		_ = logging.Errorf("create VIPs failed, err: %v", err)
@@ -161,13 +162,14 @@ func (a *Allocator) CreateVIPs(vxNetID, IPStart, IPEnd, namespace string) error 
 		IPEnd:     IPEnd,
 		VIPs:      vipIDs,
 		Namespace: namespace,
+		NADName:   NADName,
 	}
 	a.vipJobs[jobID] = newVipJob
 	return nil
 }
 
-func (a *Allocator) TryToFreeVxNetVIPs(vxNetID, namespace string) {
-	err := vip.TryFreeVIP(vxNetID, namespace, a.StopCh)
+func (a *Allocator) TryToFreeVxNetVIPs(NADName, namespace string) {
+	err := vip.TryFreeVIP(NADName, namespace, a.StopCh)
 	if err != nil {
 		_ = logging.Errorf("Try to free VIP failed, err: %v", err)
 	}
@@ -278,7 +280,7 @@ func (a *Allocator) CheckVipJobs() {
 	for _, _succJob := range succJobs {
 		jobInfo := a.vipJobs[_succJob]
 		logging.Verbosef("Job [%s] succeed, Init vipDetailInfo", _succJob)
-		err = vip.InitVIP(jobInfo.VxNetID, jobInfo.Namespace, jobInfo.VIPs)
+		err = vip.InitVIP(jobInfo.VxNetID, jobInfo.Namespace, jobInfo.NADName, jobInfo.VIPs)
 		if err != nil {
 			_ = logging.Errorf("init configMap failed with Info [%v]", jobInfo)
 		} else {
@@ -295,7 +297,7 @@ func (a *Allocator) CheckVipJobs() {
 
 	go func() {
 		for _, jobInfo := range retryJobs {
-			err := a.CreateVIPs(jobInfo.VxNetID, jobInfo.IPStart, jobInfo.IPEnd, jobInfo.Namespace)
+			err := a.CreateVIPs(jobInfo.VxNetID, jobInfo.IPStart, jobInfo.IPEnd, jobInfo.Namespace, jobInfo.NADName)
 			if err != nil {
 				_ = logging.Errorf("retry create vip failed, JobInfo %v", jobInfo)
 				continue
