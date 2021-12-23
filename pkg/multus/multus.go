@@ -675,7 +675,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 			if err != nil {
 				return nil, cmdErr(k8sArgs, "error try load configmap: %v", err)
 			}
-			podIP, err := vip.AllocatePodIP(configmap.Name, configmap.Namespace, pod.Name)
+			podIP, err := vip.AllocatePodIP(kubeClient, configmap.Name, configmap.Namespace, pod.Name)
 			if err != nil {
 				return nil, cmdErr(k8sArgs, "error attach pod vip network status: %v", err)
 			}
@@ -923,7 +923,7 @@ func CmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) er
 			if err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
-			if err := vip.ReleasePodIP(configmap.Name, configmap.Namespace, pod.Name); err != nil {
+			if err := vip.ReleasePodIP(kubeClient, configmap.Name, configmap.Namespace, pod.Name); err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
 			if err := DelNetworkInterface(k8sArgs, v); err != nil {

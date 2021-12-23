@@ -6,6 +6,7 @@ import (
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/k8s"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/qcclient"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/utils"
+	"github.com/DataWorkbench/multus-cni/pkg/k8sclient"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"github.com/matoous/go-nanoid/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -327,10 +328,10 @@ func createConfigMap(name, namespace, IPStart, IPEnd string) error {
 	return nil
 }
 
-func AllocatePodIP(name, namespace, podName string) (string, error) {
+func AllocatePodIP(client *k8sclient.ClientInfo, name, namespace, podName string) (string, error) {
 	var allocIP string
 	err := retry.RetryOnConflict(utils.RetryConf, func() error {
-		configMap, err := k8s.K8sHelper.Client.GetConfigMap(name, namespace)
+		configMap, err := client.GetConfigMap(name, namespace)
 		if err != nil {
 			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
 				name, namespace)
@@ -358,16 +359,16 @@ func AllocatePodIP(name, namespace, podName string) (string, error) {
 			return err
 		}
 		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
-		configMap, err = k8s.K8sHelper.Client.UpdateConfigMap(namespace, configMap)
+		configMap, err = client.UpdateConfigMap(namespace, configMap)
 		return err
 	})
 	return allocIP, err
 }
 
 // Detach Pod Ref VIP info
-func ReleasePodIP(name, namespace, podName string) error {
+func ReleasePodIP(client *k8sclient.ClientInfo, name, namespace, podName string) error {
 	return retry.RetryOnConflict(utils.RetryConf, func() error {
-		configMap, err := k8s.K8sHelper.Client.GetConfigMap(name, namespace)
+		configMap, err := client.GetConfigMap(name, namespace)
 		if err != nil {
 			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for deleting",
 				name, namespace)
@@ -389,7 +390,7 @@ func ReleasePodIP(name, namespace, podName string) error {
 			return err
 		}
 		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
-		configMap, err = k8s.K8sHelper.Client.UpdateConfigMap(namespace, configMap)
+		configMap, err = client.UpdateConfigMap(namespace, configMap)
 		return err
 	})
 }
