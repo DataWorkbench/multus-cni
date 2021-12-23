@@ -37,6 +37,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 			},
 			IPStart: delegate.Conf.IPAM.RangeStart,
 			IPEnd:   delegate.Conf.IPAM.RangeEnd,
+			NAD:     delegate.Conf.Name,
 		})
 	if err != nil {
 		return err
@@ -72,7 +73,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	return nil
 }
 
-func DelNetworkInterface(k8sArgs *types.K8sArgs) error {
+func DelNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf) error {
 	// Set up a connection to the NICM server.
 	logging.Debugf("DelNetworkInterface begin args: %v", k8sArgs)
 	conn, err := grpc.Dial(constants.DefaultUnixSocketPath, grpc.WithInsecure())
@@ -89,6 +90,7 @@ func DelNetworkInterface(k8sArgs *types.K8sArgs) error {
 				Namespace:  string(k8sArgs.K8S_POD_NAMESPACE),
 				Containter: string(k8sArgs.K8S_POD_INFRA_CONTAINER_ID),
 			},
+			NAD: delegate.Conf.Name,
 		})
 	if err != nil {
 		return err

@@ -562,12 +562,12 @@ func getPod(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, ignoreNotFound b
 	return pod, nil
 }
 
-func tryLoadConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, pod *v1.Pod) (*v1.ConfigMap, error) {
+func tryLoadConfigMap(kubeClient *k8s.ClientInfo, k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf) (*v1.ConfigMap, error) {
 	if kubeClient == nil {
 		return nil, nil
 	}
 	configmapNamespace := string(k8sArgs.K8S_POD_NAMESPACE)
-	configmapName := strings.ToLower("vip-" + pod.GetAnnotations()[constants.AnnoHostNicVxnet])
+	configmapName := strings.ToLower("vip-" + delegate.Conf.Name)
 	var configmap *v1.ConfigMap
 	var err error
 	waitErr := wait.PollImmediate(configmapPollDuration, configmapPollTimeout, func() (bool, error) {
@@ -671,7 +671,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 			if err := AddNetworkInterface(k8sArgs, delegate); err != nil {
 				return nil, cmdErr(k8sArgs, "error add network: %v", err)
 			}
-			configmap, err := tryLoadConfigMap(kubeClient, k8sArgs, pod)
+			configmap, err := tryLoadConfigMap(kubeClient, k8sArgs, delegate)
 			if err != nil {
 				return nil, cmdErr(k8sArgs, "error try load configmap: %v", err)
 			}
@@ -919,14 +919,14 @@ func CmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) er
 	for _, v := range in.Delegates {
 		isMacvlanType := v.Conf.Type == "macvlan"
 		if isMacvlanType {
-			configmap, err := tryLoadConfigMap(kubeClient, k8sArgs, pod)
+			configmap, err := tryLoadConfigMap(kubeClient, k8sArgs, v)
 			if err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
 			if err := vip.ReleasePodIP(configmap.Name, configmap.Namespace, pod.Name); err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
-			if err := DelNetworkInterface(k8sArgs); err != nil {
+			if err := DelNetworkInterface(k8sArgs, v); err != nil {
 				return cmdErr(k8sArgs, "error delete network: %v", err)
 			}
 		}
