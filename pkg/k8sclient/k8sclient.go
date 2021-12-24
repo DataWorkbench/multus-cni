@@ -70,6 +70,11 @@ func (c *ClientInfo) AddPod(pod *v1.Pod) (*v1.Pod, error) {
 	return c.Client.CoreV1().Pods(pod.ObjectMeta.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 }
 
+// GetNode gets node from kubernetes
+func (c *ClientInfo) GetNode(name string) (*v1.Node, error) {
+	return c.Client.CoreV1().Nodes().Get(context.TODO(), name, metav1.GetOptions{})
+}
+
 // GetPod gets pod from kubernetes
 func (c *ClientInfo) GetPod(namespace, name string) (*v1.Pod, error) {
 	return c.Client.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})

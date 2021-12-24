@@ -3,6 +3,7 @@ package multus
 import (
 	"context"
 	"fmt"
+	k8s "github.com/DataWorkbench/multus-cni/pkg/k8sclient"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"net"
 	"os"
@@ -99,9 +100,13 @@ func DelNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	return nil
 }
 
-func ConfigureK8sRoute(args *skel.CmdArgs, ifName string) error {
+func ConfigureK8sRoute(kubeClient *k8s.ClientInfo, args *skel.CmdArgs, ifName string) error {
 	logging.Debugf("ConfigureK8sRoute begin interface name: %s args: %v", ifName, args)
 	netns, err := ns.GetNS(args.Netns)
+	if err != nil {
+		return err
+	}
+	node, err := kubeClient.GetNode(os.Getenv("HOSTNAME"))
 	if err != nil {
 		return err
 	}
@@ -114,7 +119,7 @@ func ConfigureK8sRoute(args *skel.CmdArgs, ifName string) error {
 			return logging.Errorf("link %q not found: %v", ifName, err)
 		}
 		// add route
-		configureIPNets := []string{"10.10.0.0/16", "10.96.0.0/16"}
+		configureIPNets := node.Spec.PodCIDRs
 		for _, IPNet := range configureIPNets {
 			_, ipNet, _ := net.ParseCIDR(IPNet)
 			route := &netlink.Route{
