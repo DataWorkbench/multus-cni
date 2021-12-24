@@ -106,7 +106,11 @@ func ConfigureK8sRoute(kubeClient *k8s.ClientInfo, args *skel.CmdArgs, ifName st
 	if err != nil {
 		return err
 	}
-	node, err := kubeClient.GetNode(os.Getenv("HOSTNAME"))
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+	node, err := kubeClient.GetNode(hostname)
 	if err != nil {
 		return err
 	}
