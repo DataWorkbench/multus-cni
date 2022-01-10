@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
+	cnitypes "github.com/containernetworking/cni/pkg/types"
+	"github.com/containernetworking/cni/pkg/types/current"
 	"net"
 	"os"
 	"time"
@@ -99,11 +101,16 @@ func DelNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	return nil
 }
 
-func ConfigureK8sRoute(n *types.NetConf, args *skel.CmdArgs, ifName string) error {
+func ConfigureK8sRoute(n *types.NetConf, args *skel.CmdArgs, ifName string, res *cnitypes.Result) (*current.Result, error) {
 	logging.Debugf("ConfigureK8sRoute begin interface name: %s args: %v", ifName, args)
+	result, err := current.NewResultFromResult(*res)
+	if err != nil {
+		return nil, logging.Errorf("ConfigureK8sRoute: Error creating new from current CNI result: %v", err)
+	}
+	var newResultDefaultRoutes []*cnitypes.Route
 	netns, err := ns.GetNS(args.Netns)
 	if err != nil {
-		return err
+		return result, err
 	}
 	defer netns.Close()
 
@@ -113,39 +120,31 @@ func ConfigureK8sRoute(n *types.NetConf, args *skel.CmdArgs, ifName string) erro
 		if err != nil {
 			return logging.Errorf("link %q not found: %v", ifName, err)
 		}
-		// delete route
-		routes, err := netlink.RouteList(link, netlink.FAMILY_ALL)
-		if err != nil && !os.IsExist(err) {
-			return logging.Errorf("failed to list route %v: %v", ifName, err)
-		}
-		for _, route := range routes {
-			if route.Gw.Equal(net.ParseIP("169.254.1.1")) {
-				if err := netlink.RouteDel(&route); err != nil && !os.IsExist(err) {
-					return logging.Errorf("failed to delete route %v: %v", route, err)
-				}
-			}
-		}
 		// add route
 		configureIPNets := []string{n.PodCIDR, n.ServiceCIDR}
 		for _, IPNet := range configureIPNets {
 			_, ipNet, _ := net.ParseCIDR(IPNet)
-			route := &netlink.Route{
-				LinkIndex: link.Attrs().Index,
-				Dst: &net.IPNet{
+			dst := &net.IPNet{
 					IP:   ipNet.IP,
 					Mask: ipNet.Mask,
-				},
-				Gw: net.ParseIP("169.254.1.1"),
 			}
-			if err := netlink.RouteReplace(route); err != nil && !os.IsExist(err) {
+			gw := 	net.ParseIP("169.254.1.1")
+			route := &netlink.Route{
+				LinkIndex: link.Attrs().Index,
+				Dst: dst,
+				Gw: gw,
+			}
+			if err := netlink.RouteAdd(route); err != nil && !os.IsExist(err) {
 				return logging.Errorf("failed to add route %v: %v", route, err)
 			}
+			newResultDefaultRoutes = append(newResultDefaultRoutes, &cnitypes.Route{Dst: *dst, GW: gw})
 		}
 		return nil
 	})
 	if err != nil {
-		return err
+		return result, err
 	}
+	result.Routes = newResultDefaultRoutes
 	logging.Debugf("ConfigureK8sRoute finish interface name: %s args: %v", ifName, args)
-	return nil
+	return result, nil
 }

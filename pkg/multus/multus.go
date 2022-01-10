@@ -659,13 +659,9 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 
 	var result, tmpResult cnitypes.Result
 	var netStatus []nettypes.NetworkStatus
-	var masterPluginIfName string
 	cniArgs := os.Getenv("CNI_ARGS")
 	for idx, delegate := range n.Delegates {
 		ifName := getIfname(delegate, args.IfName, idx)
-		if delegate.MasterPlugin {
-			masterPluginIfName = ifName
-		}
 		isMacvlanType := delegate.Conf.Type == "macvlan"
 		if isMacvlanType {
 			if err := AddNetworkInterface(k8sArgs, delegate); err != nil {
@@ -706,7 +702,6 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 		// Remove gateway from routing table if the gateway is not used
 		deletegateway := false
 		adddefaultgateway := false
-		addK8sRouteRule := false
 		if delegate.IsFilterGateway {
 			deletegateway = true
 			logging.Debugf("Marked interface %v for gateway deletion", ifName)
@@ -719,13 +714,18 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 			if delegate.GatewayRequest != nil && delegate.GatewayRequest[0] != nil {
 				deletegateway = true
 				adddefaultgateway = true
-				addK8sRouteRule = true
 				logging.Debugf("Detected gateway override on interface %v to %v", ifName, delegate.GatewayRequest)
 			}
 		}
 
 		if deletegateway {
 			tmpResult, err = netutils.DeleteDefaultGW(args, ifName, &tmpResult)
+			if delegate.MasterPlugin {
+				tmpResult, err = ConfigureK8sRoute(n, args, ifName, &tmpResult)
+				if err != nil {
+					return nil, cmdErr(k8sArgs, "error configure k8s route: %v", err)
+				}
+			}
 			if err != nil {
 				return nil, cmdErr(k8sArgs, "error deleting default gateway: %v", err)
 			}
@@ -739,13 +739,6 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 			}
 		}
 
-		// Here we'll configure calico&&service route
-		if addK8sRouteRule {
-			err = ConfigureK8sRoute(n, args, masterPluginIfName)
-			if err != nil {
-				return nil, cmdErr(k8sArgs, "error configure k8s route: %v", err)
-			}
-		}
 
 		// Master plugin result is always used if present
 		if delegate.MasterPlugin || result == nil {
@@ -779,6 +772,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 	// set the network status annotation in apiserver, only in case Multus as kubeconfig
 	if n.Kubeconfig != "" && kc != nil {
 		if !types.CheckSystemNamespaces(string(k8sArgs.K8S_POD_NAME), n.SystemNamespaces) {
+			logging.Debugf("network status: %v", netStatus)
 			err = k8s.SetNetworkStatus(kubeClient, k8sArgs, netStatus, n)
 			if err != nil {
 				if strings.Contains(err.Error(), "failed to query the pod") {
