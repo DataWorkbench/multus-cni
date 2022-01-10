@@ -173,6 +173,8 @@ spec:
             - "-multus-autoconfig-dir=/host/etc/cni/net.d"
             - "-multus-log-file=/var/log/multus/cni/cni.log"
             - "-multus-log-level=debug"
+            - "-pod-cidr=10.233.64.0/18"
+            - "-service-cidr=10.233.0.0/18"
           resources:
             requests:
               cpu: "100m"

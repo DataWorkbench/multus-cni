@@ -741,7 +741,7 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 
 		// Here we'll configure calico&&service route
 		if addK8sRouteRule {
-			err = ConfigureK8sRoute(kubeClient ,args, masterPluginIfName)
+			err = ConfigureK8sRoute(n, args, masterPluginIfName)
 			if err != nil {
 				return nil, cmdErr(k8sArgs, "error configure k8s route: %v", err)
 			}

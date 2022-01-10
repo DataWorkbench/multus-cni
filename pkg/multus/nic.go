@@ -3,7 +3,6 @@ package multus
 import (
 	"context"
 	"fmt"
-	k8s "github.com/DataWorkbench/multus-cni/pkg/k8sclient"
 	"github.com/DataWorkbench/multus-cni/pkg/logging"
 	"net"
 	"os"
@@ -100,17 +99,9 @@ func DelNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	return nil
 }
 
-func ConfigureK8sRoute(kubeClient *k8s.ClientInfo, args *skel.CmdArgs, ifName string) error {
+func ConfigureK8sRoute(n *types.NetConf, args *skel.CmdArgs, ifName string) error {
 	logging.Debugf("ConfigureK8sRoute begin interface name: %s args: %v", ifName, args)
 	netns, err := ns.GetNS(args.Netns)
-	if err != nil {
-		return err
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-	node, err := kubeClient.GetNode(hostname)
 	if err != nil {
 		return err
 	}
@@ -122,8 +113,20 @@ func ConfigureK8sRoute(kubeClient *k8s.ClientInfo, args *skel.CmdArgs, ifName st
 		if err != nil {
 			return logging.Errorf("link %q not found: %v", ifName, err)
 		}
+		// delete route
+		routes, err := netlink.RouteList(link, netlink.FAMILY_ALL)
+		if err != nil && !os.IsExist(err) {
+			return logging.Errorf("failed to list route %v: %v", ifName, err)
+		}
+		for _, route := range routes {
+			if route.Gw.Equal(net.ParseIP("169.254.1.1")) {
+				if err := netlink.RouteDel(&route); err != nil && !os.IsExist(err) {
+					return logging.Errorf("failed to delete route %v: %v", route, err)
+				}
+			}
+		}
 		// add route
-		configureIPNets := node.Spec.PodCIDRs
+		configureIPNets := []string{n.PodCIDR, n.ServiceCIDR}
 		for _, IPNet := range configureIPNets {
 			_, ipNet, _ := net.ParseCIDR(IPNet)
 			route := &netlink.Route{

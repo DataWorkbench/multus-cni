@@ -56,6 +56,8 @@ type NetConf struct {
 	SystemNamespaces []string `json:"systemNamespaces"`
 	// Option to set the namespace that multus-cni uses (clusterNetwork/defaultNetworks)
 	MultusNamespace string `json:"multusNamespace"`
+	PodCIDR         string `json:"podCIDR,omitempty"`
+	ServiceCIDR     string `json:"serviceCIDR,omitempty"`
 }
 
 // RuntimeConfig specifies CNI RuntimeConfig

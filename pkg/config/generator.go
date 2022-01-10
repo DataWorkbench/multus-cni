@@ -48,6 +48,8 @@ type MultusConf struct {
 	RawNonIsolatedNamespaces string          `json:"globalNamespaces,omitempty"`
 	ReadinessIndicatorFile   string          `json:"readinessindicatorfile,omitempty"`
 	Type                     string          `json:"type"`
+	PodCIDR                  string          `json:"podCIDR,omitempty"`
+	ServiceCIDR              string          `json:"serviceCIDR,omitempty"`
 }
 
 // NewMultusConfig creates a basic configuration generator. It can be mutated
@@ -143,6 +145,22 @@ func WithAdditionalBinaryFileDir(directoryPath string) Option {
 func WithOverriddenName(networkName string) Option {
 	return func(conf *MultusConf) {
 		conf.Name = networkName
+	}
+}
+
+// WithPodCIDR mutates the inner state to set the
+// PodCIDR attribute
+func WithPodCIDR(podCIDR string) Option {
+	return func(conf *MultusConf) {
+		conf.PodCIDR = podCIDR
+	}
+}
+
+// WithServiceCIDR mutates the inner state to set the
+// ServiceCIDR attribute
+func WithServiceCIDR(serviceCIDR string) Option {
+	return func(conf *MultusConf) {
+		conf.ServiceCIDR = serviceCIDR
 	}
 }
 

@@ -45,6 +45,8 @@ const (
 	defaultMultusMasterCNIFile          = ""
 	defaultMultusNamespaceIsolation     = false
 	defaultMultusReadinessIndicatorFile = ""
+	defaultPodCIDR                      = ""
+	defaultServiceCIDR                  = ""
 )
 
 const (
@@ -61,6 +63,8 @@ const (
 	multusMasterCNIFileVarName    = "multus-master-cni-file"
 	multusNamespaceIsolation      = "namespace-isolation"
 	multusReadinessIndicatorFile  = "readiness-indicator-file"
+	podCIDRName                   = "pod-cidr"
+	serviceCIDRName               = "service-cidr"
 )
 
 func main() {
@@ -81,6 +85,8 @@ func main() {
 	readinessIndicator := flag.String(multusReadinessIndicatorFile, defaultMultusReadinessIndicatorFile, "Which file should be used as the readiness indicator. Used only with --multus-conf-file=auto.")
 	multusKubeconfig := flag.String(multusKubeconfigPath, defaultMultusKubeconfigPath, "The path to the kubeconfig")
 	overrideNetworkName := flag.Bool("override-network-name", false, "Used when ")
+	podCIDR := flag.String(podCIDRName, defaultPodCIDR, "pod CIDR")
+	serviceCIDR := flag.String(serviceCIDRName, defaultServiceCIDR, "service CIDR")
 	flag.BoolVar(&versionOpt, "version", false, "Show application version")
 	flag.BoolVar(&versionOpt, "v", false, "Show application version")
 	flag.Parse()
@@ -139,6 +145,15 @@ func main() {
 			configurationOptions = append(
 				configurationOptions, config.WithReadinessFileIndicator(*readinessIndicator))
 		}
+
+		if *podCIDR != defaultPodCIDR {
+			configurationOptions = append(configurationOptions, config.WithPodCIDR(*podCIDR))
+		}
+
+		if *serviceCIDR != defaultServiceCIDR {
+			configurationOptions = append(configurationOptions, config.WithServiceCIDR(*serviceCIDR))
+		}
+
 		multusConfig := config.NewMultusConfig(multusPluginName, *cniVersion, *multusKubeconfig, configurationOptions...)
 
 		var configManager *config.Manager
