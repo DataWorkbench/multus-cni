@@ -164,7 +164,7 @@ spec:
       serviceAccountName: multus
       containers:
         - name: kube-multus
-          image: dockerhub.databench.io/databench/nic-manager:latest
+          image: dockerhub.dataomnis.io/dataomnis/nic-manager:latest
           imagePullPolicy: IfNotPresent
           command: [ "/usr/src/multus-cni/bin/multus-daemon" ]
           args:
@@ -173,8 +173,8 @@ spec:
             - "-multus-autoconfig-dir=/host/etc/cni/net.d"
             - "-multus-log-file=/var/log/multus/cni/cni.log"
             - "-multus-log-level=debug"
-            - "-pod-cidr=10.233.64.0/18"
-            - "-service-cidr=10.233.0.0/18"
+            - "-pod-cidr=10.10.0.0/16"
+            - "-service-cidr=10.11.0.0/16"
           resources:
             requests:
               cpu: "100m"
@@ -201,7 +201,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          image: dockerhub.databench.io/databench/nic-manager:latest
+          image: dockerhub.dataomnis.io/dataomnis/nic-manager:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 61678
@@ -233,7 +233,7 @@ spec:
         - name: device-plugin
           command:
             - /usr/src/multus-cni/bin/multus-nic-device-plugin
-          image: dockerhub.databench.io/databench/nic-manager:latest
+          image: dockerhub.dataomnis.io/dataomnis/nic-manager:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 61679
@@ -250,7 +250,7 @@ spec:
               mountPath: /var/lib/kubelet/device-plugins/
       initContainers:
         - name: install-multus-binary
-          image: dockerhub.databench.io/databench/nic-manager:latest
+          image: dockerhub.dataomnis.io/dataomnis/nic-manager:latest
           command:
             - "cp"
             - "/usr/src/multus-cni/bin/multus"
@@ -266,7 +266,7 @@ spec:
               mountPath: /host/opt/cni/bin
               mountPropagation: Bidirectional
         - name: generate-kubeconfig
-          image: dockerhub.databench.io/databench/nic-manager:latest
+          image: dockerhub.dataomnis.io/dataomnis/nic-manager:latest
           command:
             - "/usr/src/multus-cni/bin/generate-kubeconfig"
           args:
