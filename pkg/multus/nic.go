@@ -112,11 +112,11 @@ func ConfigureK8sRoute(n *types.NetConf, args *skel.CmdArgs, ifName string, res 
 	if err != nil {
 		return result, err
 	}
+	var link netlink.Link
 	defer netns.Close()
-
 	// Do this within the net namespace.
 	err = netns.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(ifName)
+		link, err = netlink.LinkByName(ifName)
 		if err != nil {
 			return logging.Errorf("link %q not found: %v", ifName, err)
 		}
@@ -125,26 +125,43 @@ func ConfigureK8sRoute(n *types.NetConf, args *skel.CmdArgs, ifName string, res 
 		for _, IPNet := range configureIPNets {
 			_, ipNet, _ := net.ParseCIDR(IPNet)
 			dst := &net.IPNet{
-					IP:   ipNet.IP,
-					Mask: ipNet.Mask,
+				IP:   ipNet.IP,
+				Mask: ipNet.Mask,
 			}
-			gw := 	net.ParseIP("169.254.1.1")
+			gw := net.ParseIP("169.254.1.1")
 			route := &netlink.Route{
 				LinkIndex: link.Attrs().Index,
-				Dst: dst,
-				Gw: gw,
+				Dst:       dst,
+				Gw:        gw,
 			}
 			if err := netlink.RouteAdd(route); err != nil && !os.IsExist(err) {
 				return logging.Errorf("failed to add route %v: %v", route, err)
 			}
 			newResultDefaultRoutes = append(newResultDefaultRoutes, &cnitypes.Route{Dst: *dst, GW: gw})
 		}
+
 		return nil
 	})
 	if err != nil {
 		return result, err
 	}
 	result.Routes = newResultDefaultRoutes
+	// add ip neigh
+	k8sLink, err := netlink.LinkByName(result.Interfaces[0].Name)
+	if err != nil {
+		return result, err
+	}
+	neigh := netlink.Neigh{
+		IP:           result.IPs[0].Address.IP,
+		HardwareAddr: link.Attrs().HardwareAddr,
+		LinkIndex:    k8sLink.Attrs().Index,
+		State:        netlink.NUD_PERMANENT,
+	}
+	logging.Debugf("add ip neigh %v+, %v+", neigh, link)
+	if err := netlink.NeighAdd(&neigh); err != nil {
+		logging.Errorf("failed to add ip neigh %v: %v", neigh, err)
+		return result, err
+	}
 	logging.Debugf("ConfigureK8sRoute finish interface name: %s args: %v", ifName, args)
 	return result, nil
 }
