@@ -739,7 +739,6 @@ func CmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) (c
 			}
 		}
 
-
 		// Master plugin result is always used if present
 		if delegate.MasterPlugin || result == nil {
 			result = tmpResult
@@ -915,13 +914,15 @@ func CmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient *k8s.ClientInfo) er
 		if isMacvlanType {
 			configmap, err := tryLoadConfigMap(kubeClient, k8sArgs, v)
 			if err != nil {
-				return cmdErr(k8sArgs, "error delete network: %v", err)
-			}
-			if err := vip.ReleasePodIP(kubeClient, configmap.Name, configmap.Namespace, pod.Name); err != nil {
-				return cmdErr(k8sArgs, "error delete network: %v", err)
-			}
-			if err := DelNetworkInterface(k8sArgs, v); err != nil {
-				return cmdErr(k8sArgs, "error delete network: %v", err)
+				logging.Errorf("error delete network: %v", err)
+			} else {
+				if err := vip.ReleasePodIP(kubeClient, configmap.Name, configmap.Namespace, pod.Name); err != nil {
+					logging.Errorf("error delete network: %v", err)
+				} else {
+					if err := DelNetworkInterface(k8sArgs, v); err != nil {
+						logging.Errorf("error delete network: %v", err)
+					}
+				}
 			}
 		}
 		if v.ConfListPlugin == true && v.ConfList.CNIVersion == "" && in.CNIVersion != "" {
