@@ -112,6 +112,18 @@ func ConfigureK8sRoute(n *types.NetConf, args *skel.CmdArgs, ifName string, res 
 	if err != nil {
 		return result, err
 	}
+	// get node master if
+	nodeIf, err := net.InterfaceByName("eth0")
+	if err != nil {
+		logging.Errorf("interface %q not found: %v", "eth0", err)
+		return result, err
+	}
+	nodeAddrs, err := nodeIf.Addrs()
+	if err != nil {
+		logging.Errorf("address %q not found: %v", "eth0", err)
+		return result, err
+	}
+	nodeAddr, _, _ := net.ParseCIDR(nodeAddrs[0].String())
 	var link netlink.Link
 	defer netns.Close()
 	// Do this within the net namespace.
@@ -121,7 +133,7 @@ func ConfigureK8sRoute(n *types.NetConf, args *skel.CmdArgs, ifName string, res 
 			return logging.Errorf("link %q not found: %v", ifName, err)
 		}
 		// add route
-		configureIPNets := []string{n.PodCIDR, n.ServiceCIDR}
+		configureIPNets := []string{n.PodCIDR, n.ServiceCIDR, string(nodeAddr) + "/32"}
 		for _, IPNet := range configureIPNets {
 			_, ipNet, _ := net.ParseCIDR(IPNet)
 			dst := &net.IPNet{
