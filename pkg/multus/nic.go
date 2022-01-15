@@ -133,7 +133,7 @@ func ConfigureK8sRoute(n *types.NetConf, args *skel.CmdArgs, ifName string, res 
 			return logging.Errorf("link %q not found: %v", ifName, err)
 		}
 		// add route
-		configureIPNets := []string{n.PodCIDR, n.ServiceCIDR, nodeAddr.String() + "/32"}
+		configureIPNets := []string{n.PodCIDR, n.ServiceCIDR, nodeAddr.String() + "/32", "169.254.0.0/16"}
 		for _, IPNet := range configureIPNets {
 			_, ipNet, _ := net.ParseCIDR(IPNet)
 			dst := &net.IPNet{
