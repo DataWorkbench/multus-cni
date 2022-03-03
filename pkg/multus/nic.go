@@ -8,6 +8,8 @@ import (
 	"github.com/containernetworking/cni/pkg/types/current"
 	"net"
 	"os"
+	"path"
+	"syscall"
 	"time"
 
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/constants"
@@ -18,6 +20,10 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
+)
+
+const (
+	lockFileDir = "/var/lock"
 )
 
 func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf) error {
@@ -51,7 +57,7 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	for i := 0; i < try; i++ {
 		link, err = netutils.LinkByMacAddr(r.Nic.HardwareAddr)
 		if err != nil && err != constants.ErrNicNotFound {
-			return err
+			return logging.Errorf("get link by mac address %s error: %v", r.Nic.HardwareAddr, err)
 		}
 		if link != nil {
 			break
@@ -60,6 +66,21 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 	}
 	if link == nil {
 		return constants.ErrNicNotFound
+	}
+	lockFileName := path.Join(lockFileDir, delegate.Conf.Master)
+	f, err := os.Create(lockFileName)
+	if err != nil {
+		return logging.Errorf("failed to create lock file %s: %v", lockFileName, err)
+	}
+	defer f.Close()
+	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX)
+	if err != nil {
+		return logging.Errorf("cannot flock file %s - %s", lockFileName, err)
+	}
+	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	link, err = netutils.LinkByMacAddr(r.Nic.HardwareAddr)
+	if err != nil && err != constants.ErrNicNotFound {
+		return logging.Errorf("get link by mac address %s error: %v", r.Nic.HardwareAddr, err)
 	}
 	if link.Attrs().Name != delegate.Conf.Master {
 		err = netlink.LinkSetName(link, delegate.Conf.Master)
