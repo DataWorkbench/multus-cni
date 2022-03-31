@@ -91,6 +91,17 @@ func AddNetworkInterface(k8sArgs *types.K8sArgs, delegate *types.DelegateNetConf
 		if err != nil {
 			return logging.Errorf("failed to set link %s up: %v", link.Attrs().Name, err)
 		}
+		try = 10
+		for i := 0; i < try; i++ {
+			link, err = netutils.LinkByMacAddr(r.Nic.HardwareAddr)
+			if err != nil && err != constants.ErrNicNotFound {
+				return logging.Errorf("get link by mac address %s error: %v", r.Nic.HardwareAddr, err)
+			}
+			if link.Attrs().Name == delegate.Conf.Master {
+				break
+			}
+			time.Sleep(1 * time.Second)
+		}
 	}
 	logging.Debugf("AddNetworkInterface finish delegate: %v args: %v", delegate, k8sArgs)
 	return nil
