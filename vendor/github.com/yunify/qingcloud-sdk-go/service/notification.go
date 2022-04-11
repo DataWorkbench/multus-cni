@@ -81,7 +81,7 @@ type DescribeNotificationListsInput struct {
 
 func (v *DescribeNotificationListsInput) Validate() error {
 
-	if len(v.NotificationLists) == 0 {
+	if v.NotificationLists != nil && len(v.NotificationLists) == 0 {
 		return errors.ParameterRequiredError{
 			ParameterName: "NotificationLists",
 			ParentName:    "DescribeNotificationListsInput",
