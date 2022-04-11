@@ -120,12 +120,11 @@ func PrintErrReason(err error, desc string) {
 	logging.Verbosef("%s, Error Reason: [%s]", desc, string(k8serrors.ReasonForError(err)))
 }
 
-func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd string) (map[string]string, bool, error) {
-	var needToCreateVIP bool
+func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd string) (map[string]string, error) {
 	VIPCMName := CreateVIPCMName(NADName)
 	configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 	if err == nil {
-		return configMap.Data, needToCreateVIP, nil
+		return configMap.Data, nil
 	}
 
 	PrintErrReason(err, "Try to get ConfigMap failed")
@@ -133,7 +132,6 @@ func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd string) (map[string]s
 		for i := 0; i < constants.MaxRetry; i++ {
 			err = createConfigMap(VIPCMName, namespace, IPStart, IPEnd)
 			if err == nil {
-				needToCreateVIP = true
 				break
 			}
 		}
@@ -143,10 +141,10 @@ func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd string) (map[string]s
 	if err != nil {
 		_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] after creating",
 			VIPCMName, namespace)
-		return nil, needToCreateVIP, err
+		return nil, err
 	}
 
-	return configMap.Data, needToCreateVIP, nil
+	return configMap.Data, nil
 }
 
 func InitVIP(vxNetID, namespace, NADName string, VIPs []string) (err error) {
