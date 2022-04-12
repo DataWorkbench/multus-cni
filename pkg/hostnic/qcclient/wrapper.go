@@ -407,16 +407,30 @@ func (q *qingcloudAPIWrapper) DescribeVIPJobs(ids []string) (err error, successJ
 	return nil, successJobs, failedJobs
 }
 
-func (q *qingcloudAPIWrapper) DescribeVIPs(vxNetID string, VIPs []string) (*service.DescribeVxNetsVIPsOutput, error) {
-	_VIPs := []*string{}
-	for _, id := range VIPs {
-		_id := id
-		_VIPs = append(_VIPs, &_id)
+func _getStringSlice(param []string) []*string {
+	resp := []*string{}
+	for _, element := range param {
+		_element := element
+		resp = append(resp, &_element)
 	}
+	return resp
+}
+
+func (q *qingcloudAPIWrapper) DescribeVIPs(vxNetID string, VIPs []string, Addrs []string) (*service.DescribeVxNetsVIPsOutput, error) {
+	_VIPs := _getStringSlice(VIPs)
+	_addrs := _getStringSlice(Addrs)
+
 	input := &service.DescribeVxNetsVIPsInput{
 		VxNets: []*string{&vxNetID},
-		VIPs:   _VIPs,
 		Limit:  service.Int(constants.VIPNumLimit),
+	}
+
+	if len(_VIPs) > 0 {
+		input.VIPs = _VIPs
+	}
+
+	if len(_addrs) > 0 {
+		input.VIPAddrs = _addrs
 	}
 
 	output, err := q.vipService.DescribeVxNetsVIPs(input)

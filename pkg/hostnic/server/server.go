@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/DataWorkbench/multus-cni/pkg/hostnic/utils"
 	"github.com/DataWorkbench/multus-cni/pkg/hostnic/vip"
 	"net"
 	"os"
@@ -80,6 +81,15 @@ func (s *NICMServer) AddNetwork(context context.Context, in *rpc.NICMMessage) (*
 	}()
 
 	_, err = vip.GetVIPConfForVxNet(in.GetNAD(), in.Args.Namespace, in.IPStart, in.IPEnd)
+	if err != nil {
+		return nil, err
+	}
+
+	ipAddrs := utils.GetIPsFromRange(in.IPStart, in.IPEnd)
+	err = vip.InitVIP(info.VxNet, in.Args.Namespace, in.NAD, ipAddrs)
+	if err != nil {
+		return nil, err
+	}
 
 	in.Nic, err = allocator.Alloc.AllocHostNic(in.Args)
 

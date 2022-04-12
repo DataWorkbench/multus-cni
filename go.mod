@@ -37,7 +37,7 @@ replace (
 	github.com/DATA-DOG/godog v0.10.0 => github.com/cucumber/godog v0.7.9
 	github.com/go-logr/logr => github.com/go-logr/logr v0.2.1
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
-	github.com/yunify/qingcloud-sdk-go => github.com/DataWorkbench/qingcloud-sdk-go v0.0.0-20220328025238-bffd3afb20e8
+	github.com/yunify/qingcloud-sdk-go => github.com/DataWorkbench/qingcloud-sdk-go v0.0.0-20220412090706-cde369bccdde
 	k8s.io/api => k8s.io/api v0.20.10
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.10
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.10

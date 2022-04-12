@@ -32,7 +32,7 @@ type QingCloudAPI interface {
 	DeleteVIPs(vips []string) (string, error)
 	DescribeVIPJobs(ids []string) (error, []string, []string)
 
-	DescribeVIPs(vxNetID string, VIPs []string) (*service.DescribeVxNetsVIPsOutput, error)
+	DescribeVIPs(vxNetID string, VIPs []string, Addrs []string) (*service.DescribeVxNetsVIPsOutput, error)
 }
 
 var (

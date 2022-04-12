@@ -258,54 +258,6 @@ func (a *Allocator) GetCurrentNodePods() map[string]bool {
 	return infoMap
 }
 
-func (a *Allocator) CheckVipJobs() {
-	a.vipLock.Lock()
-	defer a.vipLock.Unlock()
-
-	if len(a.vipJobs) <= 0 {
-		logging.Debugf("vipJobs is empty, skip..")
-		return
-	}
-
-	logging.Verbosef("period check VIP jobs")
-	currVipJobIDs := []string{}
-	for _jobID, _ := range a.vipJobs {
-		currVipJobIDs = append(currVipJobIDs, _jobID)
-	}
-
-	err, succJobs, failedJobs := qcclient.QClient.DescribeVIPJobs(currVipJobIDs)
-	if err != nil {
-		return
-	}
-	for _, _succJob := range succJobs {
-		jobInfo := a.vipJobs[_succJob]
-		logging.Verbosef("Job [%s] succeed, Init vipDetailInfo", _succJob)
-		err = vip.InitVIP(jobInfo.VxNetID, jobInfo.Namespace, jobInfo.NADName, jobInfo.VIPs)
-		if err != nil {
-			_ = logging.Errorf("init configMap failed with Info [%v]", jobInfo)
-		} else {
-			delete(a.vipJobs, _succJob)
-		}
-	}
-
-	retryJobs := []*VipJobInfo{}
-	for _, _failedJob := range failedJobs {
-		failedJobInfo := a.vipJobs[_failedJob]
-		retryJobs = append(retryJobs, failedJobInfo)
-		delete(a.vipJobs, _failedJob)
-	}
-
-	go func() {
-		for _, jobInfo := range retryJobs {
-			err := a.CreateVIPs(jobInfo.VxNetID, jobInfo.IPStart, jobInfo.IPEnd, jobInfo.Namespace, jobInfo.NADName)
-			if err != nil {
-				_ = logging.Errorf("retry create vip failed, JobInfo %v", jobInfo)
-				continue
-			}
-		}
-	}()
-}
-
 func (a *Allocator) SyncHostNic(node bool) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -425,7 +377,6 @@ func (a *Allocator) Start(stopCh <-chan struct{}) error {
 func (a *Allocator) run(stopCh <-chan struct{}) {
 	nodeTimer := time.NewTicker(time.Duration(a.conf.NodeSync) * time.Second).C
 	jobTimer := time.NewTicker(time.Duration(a.conf.Sync) * time.Second).C
-	vipJobTimer := time.NewTicker(time.Duration(a.conf.VipSync) * time.Second).C
 	for {
 		select {
 		case <-stopCh:
@@ -436,8 +387,6 @@ func (a *Allocator) run(stopCh <-chan struct{}) {
 		case <-nodeTimer:
 			logging.Debugf("period node sync")
 			a.SyncHostNic(true)
-		case <-vipJobTimer:
-			a.CheckVipJobs()
 		}
 	}
 }

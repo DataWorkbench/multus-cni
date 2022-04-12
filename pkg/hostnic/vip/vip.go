@@ -147,11 +147,12 @@ func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd string) (map[string]s
 	return configMap.Data, nil
 }
 
-func InitVIP(vxNetID, namespace, NADName string, VIPs []string) (err error) {
-	logging.Verbosef("Set out to init VIPs, vxNetId [%s], namespace [%s], NAD [%s], VIPs %v", vxNetID, namespace, NADName, VIPs)
-	output, err := qcclient.QClient.DescribeVIPs(vxNetID, VIPs)
+func InitVIP(vxNetID, namespace, NADName string, VIPAddrs []string) (err error) {
+	logging.Verbosef("Set out to init ConfigMap, vxNetId [%s], namespace [%s], NAD [%s], VIPAddrs %v",
+		vxNetID, namespace, NADName, VIPAddrs)
+	output, err := qcclient.QClient.DescribeVIPs(vxNetID, []string{}, VIPAddrs)
 	if err != nil {
-		_ = logging.Errorf("Query DescribeVIPs [%v] failed, err: %v", VIPs, err)
+		_ = logging.Errorf("Query DescribeVIPs [%v] failed, err: %v", VIPAddrs, err)
 		return err
 	}
 
