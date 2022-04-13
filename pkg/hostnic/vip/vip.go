@@ -37,7 +37,7 @@ func (v *VIPAllocMap) CreateCMData() string {
 		TagToDelete:    false,
 		IPStart:        v.IPStart,
 		IPEnd:          v.IPEnd,
-		VIPDetailInfo:  make(map[string]*VIPInfo),
+		VIPDetailInfo:  v.VIPDetailInfo,
 		LastUpdateTime: time.Now().Unix(),
 	}
 	newCMJson, _ := json.Marshal(newCM)
@@ -120,7 +120,7 @@ func PrintErrReason(err error, desc string) {
 	logging.Verbosef("%s, Error Reason: [%s]", desc, string(k8serrors.ReasonForError(err)))
 }
 
-func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd string) (map[string]string, error) {
+func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd, vxNet string) (map[string]string, error) {
 	VIPCMName := CreateVIPCMName(NADName)
 	configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
 	if err == nil {
@@ -130,7 +130,7 @@ func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd string) (map[string]s
 	PrintErrReason(err, "Try to get ConfigMap failed")
 	if k8serrors.IsNotFound(err) {
 		for i := 0; i < constants.MaxRetry; i++ {
-			err = createConfigMap(VIPCMName, namespace, IPStart, IPEnd)
+			err = createConfigMap(VIPCMName, namespace, IPStart, IPEnd, vxNet)
 			if err == nil {
 				break
 			}
@@ -145,60 +145,6 @@ func GetVIPConfForVxNet(NADName, namespace, IPStart, IPEnd string) (map[string]s
 	}
 
 	return configMap.Data, nil
-}
-
-func InitVIP(vxNetID, namespace, NADName string, VIPAddrs []string) (err error) {
-	logging.Verbosef("Set out to init ConfigMap, vxNetId [%s], namespace [%s], NAD [%s], VIPAddrs %v",
-		vxNetID, namespace, NADName, VIPAddrs)
-	output, err := qcclient.QClient.DescribeVIPs(vxNetID, []string{}, VIPAddrs)
-	if err != nil {
-		_ = logging.Errorf("Query DescribeVIPs [%v] failed, err: %v", VIPAddrs, err)
-		return err
-	}
-
-	if len(output.VIPSet) == 0 {
-		return logging.Errorf("VIPs with Addresses [%v] not found", VIPAddrs)
-	}
-
-	VIPInfoMap := make(map[string]*VIPInfo)
-	for _, vip := range output.VIPSet {
-		vipItem := &VIPInfo{
-			ID: *vip.VIPID,
-		}
-		VIPInfoMap[*vip.VIPAddr] = vipItem
-	}
-
-	return retry.RetryOnConflict(utils.RetryConf, func() error {
-		VIPCMName := CreateVIPCMName(NADName)
-		configMap, err := k8s.K8sHelper.Client.GetConfigMap(VIPCMName, namespace)
-		if err != nil {
-			_ = logging.Errorf("failed to get ConfigMap for Name [%s] Namespace [%s] for initializing",
-				VIPCMName, namespace)
-			return err
-		}
-
-		dataMapJson := configMap.Data[constants.VIPConfName]
-		dataMap := &VIPAllocMap{}
-		err = json.Unmarshal([]byte(dataMapJson), dataMap)
-		if err != nil {
-			_ = logging.Errorf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
-			return err
-		}
-
-		if dataMap.IsInitialized() {
-			return logging.Errorf("ConfigMap Data [%s] had been initialized", dataMapJson)
-		}
-
-		dataMap.InitRefPodVIPInfo(VIPInfoMap)
-		newDataMapJson, err := json.Marshal(dataMap)
-		if err != nil {
-			_ = logging.Errorf("failed to Get Data Json after removing PodName, err: %v", err)
-			return err
-		}
-		configMap.Data[constants.VIPConfName] = string(newDataMapJson)
-		_, err = k8s.K8sHelper.Client.UpdateConfigMap(namespace, configMap)
-		return err
-	})
 }
 
 func TryFreeVIP(NADName, namespace string, stopCh <-chan struct{}) error {
@@ -286,10 +232,30 @@ func ClearVIPConf(NADName, cmName, namespace, nodeUUID string, VIPs []string, st
 	}
 }
 
-func createConfigMap(name, namespace, IPStart, IPEnd string) error {
-	vipAllocMap := VIPAllocMap{
-		IPStart: IPStart,
-		IPEnd:   IPEnd,
+func createConfigMap(name, namespace, IPStart, IPEnd, vxNetID string) error {
+	ipAddrs := utils.GetIPsFromRange(IPStart, IPEnd)
+	output, err := qcclient.QClient.DescribeVIPs(vxNetID, []string{}, ipAddrs)
+	if err != nil {
+		_ = logging.Errorf("Query DescribeVIPs [%v] failed, err: %v", ipAddrs, err)
+		return err
+	}
+
+	if len(output.VIPSet) == 0 {
+		return logging.Errorf("VIPs with Addresses [%v] not found", ipAddrs)
+	}
+
+	detailMap := make(map[string]*VIPInfo)
+	for _, vip := range output.VIPSet {
+		vipItem := &VIPInfo{
+			ID: *vip.VIPID,
+		}
+		detailMap[*vip.VIPAddr] = vipItem
+	}
+
+	vipAllocMap := &VIPAllocMap{
+		IPStart:       IPStart,
+		IPEnd:         IPEnd,
+		VIPDetailInfo: detailMap,
 	}
 	dataMap := make(map[string]string)
 	dataMap[constants.VIPConfName] = vipAllocMap.CreateCMData()
@@ -304,7 +270,7 @@ func createConfigMap(name, namespace, IPStart, IPEnd string) error {
 		},
 		Data: dataMap,
 	}
-	_, err := k8s.K8sHelper.Client.CreateConfigMap(namespace, newConfigMap)
+	_, err = k8s.K8sHelper.Client.CreateConfigMap(namespace, newConfigMap)
 	if err != nil {
 		PrintErrReason(err, "Create ConfigMap failed")
 		if k8serrors.IsAlreadyExists(err) || k8serrors.IsConflict(err) {
