@@ -156,6 +156,10 @@ func InitVIP(vxNetID, namespace, NADName string, VIPAddrs []string) (err error) 
 		return err
 	}
 
+	if len(output.VIPSet) == 0 {
+		return logging.Errorf("VIPs with Addresses [%v] not found", VIPAddrs)
+	}
+
 	VIPInfoMap := make(map[string]*VIPInfo)
 	for _, vip := range output.VIPSet {
 		vipItem := &VIPInfo{
