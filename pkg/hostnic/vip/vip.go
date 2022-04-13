@@ -284,19 +284,6 @@ func ClearVIPConf(NADName, cmName, namespace, nodeUUID string, VIPs []string, st
 	if err != nil {
 		_ = logging.Errorf("delete ConfigMap [%s], Namespace [%s] failed, err: %v", cmName, namespace, err)
 	}
-
-	if len(VIPs) <= 0 {
-		logging.Verbosef("VIPs is empty in ConfigMap!")
-		return
-	}
-	for i := 0; i < constants.MaxRetry; i++ {
-		_, err = qcclient.QClient.DeleteVIPs(VIPs)
-		if err == nil {
-			return
-		}
-
-		_ = logging.Errorf("[%d] Delete VIPs %s failed, err: %s", i, VIPs, err)
-	}
 }
 
 func createConfigMap(name, namespace, IPStart, IPEnd string) error {

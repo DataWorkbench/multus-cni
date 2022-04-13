@@ -116,6 +116,8 @@ func (s *NICMServer) DelNetwork(context context.Context, in *rpc.NICMMessage) (*
 
 	in.Nic, err = allocator.Alloc.FreeHostNic(in.Args, podInfo.VxNet)
 
+	allocator.Alloc.TryToFreeVxNetVIPs(in.GetNAD(), in.Args.Namespace)
+
 	return in, nil
 }
 
