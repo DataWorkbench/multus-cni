@@ -252,9 +252,8 @@ spec:
         - name: install-multus-binary
           image: dockerhub.dataomnis.io/dataomnis/nic-manager:latest
           command:
-            - "cp"
-            - "/usr/src/multus-cni/bin/multus"
-            - "/host/opt/cni/bin/multus"
+            - "cp /usr/src/multus-cni/bin/multus /host/opt/cni/bin/multus;"
+            - "cp /usr/src/multus-cni/bin/multus-repair-vips /host/opt/cni/bin/multus-repair-vips;"
           resources:
             requests:
               cpu: "10m"
