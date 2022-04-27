@@ -74,8 +74,8 @@ func main() {
 		for ip, info := range dataMap.VIPDetailInfo {
 			podName := info.RefPodName
 			if podName != "" {
-				pod, _ := client.GetPod(*Namespace, podName)
-				if pod == nil {
+				_, err := client.GetPod(*Namespace, podName)
+				if err != nil {
 					err = vip.ReleasePodIP(client, *Configmap, *Namespace, podName)
 					if err != nil {
 						fmt.Printf("failed to release pod %s ip %s of namespace %s\n", podName, ip, *Namespace)
