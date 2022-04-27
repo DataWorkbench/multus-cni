@@ -39,55 +39,52 @@ func main() {
 		return
 	}
 	if *Namespace == "" {
-		fmt.Printf("error namespace: %s", *Namespace)
+		fmt.Printf("error namespace: %s\n", *Namespace)
 		return
 	}
 	if *Configmap == "" {
-		fmt.Printf("error configmap: %s", *Configmap)
+		fmt.Printf("error configmap: %s\n", *Configmap)
 		return
 	}
 	fmt.Println(*Namespace, *Configmap)
 	client, err := k8sclient.GetK8sClient(*Kubeconfig, nil)
 	if err != nil {
-		fmt.Printf("failed to get k8s client: %v", err)
+		fmt.Printf("failed to get k8s client: %v\n", err)
 		return
 	}
 	var configmap *v1.ConfigMap
 	configmap, err = client.GetConfigMap(*Configmap, *Namespace)
 	if err != nil {
-		fmt.Printf("failed to get configmap %s of namespace %s: %v", err, *Configmap, *Namespace)
+		fmt.Printf("failed to get configmap %s of namespace %s: %v\n", err, *Configmap, *Namespace)
 		return
 	}
 	if configmap != nil {
 		dataMapJson := configmap.Data[constants.VIPConfName]
-		fmt.Printf("config map %s [namespace %s] %s: %s", *Configmap, *Namespace, constants.VIPConfName, dataMapJson)
+		fmt.Printf("config map %s [namespace %s] %s: %s\n", *Configmap, *Namespace, constants.VIPConfName, dataMapJson)
 		if dataMapJson == "" {
 			return
 		}
 		dataMap := &vip.VIPAllocMap{}
 		err = json.Unmarshal([]byte(dataMapJson), dataMap)
 		if err != nil {
-			fmt.Printf("failed to parse Data Json [%s], err: %v", dataMapJson, err)
+			fmt.Printf("failed to parse Data Json [%s], err: %v\n", dataMapJson, err)
 			return
 		}
 		fixedIPs := []string{}
 		for ip, info := range dataMap.VIPDetailInfo {
 			podName := info.RefPodName
 			if podName != "" {
-				pod, err := client.GetPod(*Namespace, podName)
-				if err != nil {
-					fmt.Printf("failed to get pod %s of namespace %s: %v", err, podName, *Namespace)
-					return
-				}
+				pod, _ := client.GetPod(*Namespace, podName)
 				if pod == nil {
 					err = vip.ReleasePodIP(client, *Configmap, *Namespace, podName)
 					if err != nil {
-						fmt.Printf("failed to release pod %s ip %s of namespace %s", podName, ip, *Namespace)
+						fmt.Printf("failed to release pod %s ip %s of namespace %s\n", podName, ip, *Namespace)
+					}else {
+						fixedIPs = append(fixedIPs, ip)
 					}
-					fixedIPs = append(fixedIPs, ip)
 				}
 			}
 		}
-		fmt.Printf("fix vips: %v", fixedIPs)
+		fmt.Printf("fix vips: %v\n", fixedIPs)
 	}
 }
