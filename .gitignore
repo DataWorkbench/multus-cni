@@ -13,3 +13,4 @@ gopath/
 # Test outputs
 *.out
 *.test
+.DS_Store
