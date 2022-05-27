@@ -182,6 +182,11 @@ func (a *Allocator) AllocHostNic(args *rpc.PodInfo) (*rpc.HostNic, error) {
 	_nicStatus := a.getValidNic(args.VxNet)
 	if _nicStatus != nil {
 		logging.Verbosef("Nic [%s] is found using in vxNet [%s]", _nicStatus.nic.ID, args.VxNet)
+		err := db.AddRefPodInfo(_nicStatus.nic.ID, args.Name, args.Namespace)
+		if err != nil {
+			return nil, err
+		}
+
 		return _nicStatus.nic, nil
 	}
 
